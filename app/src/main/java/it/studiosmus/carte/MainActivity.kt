@@ -12,6 +12,8 @@ import it.studiosmus.carte.audio.SalonAudio
 import it.studiosmus.carte.core.ScopaGame
 import it.studiosmus.carte.core.BriscolaGame
 import it.studiosmus.carte.core.Card
+import android.widget.SeekBar
+import it.studiosmus.carte.audio.AmbienceSettings
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -27,6 +29,7 @@ class MainActivity : Activity() {
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
     private var fireplaceEnabled = false
+    private var ambience = AmbienceSettings()
     private val ivory = Color.rgb(247, 233, 203)
     private val gold = Color.rgb(218, 174, 94)
     private val forest = Color.rgb(13, 54, 45)
