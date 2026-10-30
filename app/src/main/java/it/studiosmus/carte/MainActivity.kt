@@ -270,7 +270,8 @@ class MainActivity : Activity() {
         }
         cards.forEach { card ->
             val tile = if (action == null) cardTile(card) else cardTile(card, true) { action(card) }
-            val params = LinearLayout.LayoutParams(dp(92), dp(126))
+            // Match the original 1920×3173 scans without stretching the artwork.
+            val params = LinearLayout.LayoutParams(dp(78), dp(129))
             params.setMargins(dp(4), 0, dp(4), 0)
             row.addView(tile, params)
         }
