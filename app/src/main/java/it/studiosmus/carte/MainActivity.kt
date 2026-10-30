@@ -165,6 +165,49 @@ class MainActivity : Activity() {
         setContentView(scroll)
     }
 
+    private fun showAudioSettings() {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(28), dp(22), dp(28))
+            background = panel(forest)
+        }
+        val scroll = ScrollView(this)
+        scroll.addView(root)
+        root.addView(label("‹ TORNA AL SALOTTO", 17f, gold, true).apply {
+            setPadding(dp(10), dp(14), dp(10), dp(14))
+            setOnClickListener { showHome() }
+        })
+        root.addView(label("ATMOSFERA", 34f, ivory, true))
+        root.addView(label("Regola ogni suono in modo indipendente", 15f, gold))
+        fun slider(title: String, initial: Float, change: (Float) -> Unit) {
+            val value = label("$title · ${(initial * 100).toInt()}%", 17f, ivory, true)
+            value.setPadding(0, dp(18), 0, dp(6))
+            root.addView(value)
+            root.addView(SeekBar(this).apply {
+                max = 100
+                progress = (initial * 100).toInt()
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                        if (!fromUser) return
+                        value.text = "$title · $progress%"
+                        change(progress / 100f)
+                        saveAmbience()
+                    }
+                    override fun onStartTrackingTouch(bar: SeekBar?) {}
+                    override fun onStopTrackingTouch(bar: SeekBar?) {}
+                })
+            })
+        }
+        slider("Camino", ambience.fireplace) { ambience = ambience.copy(fireplace = it) }
+        slider("Jazz", ambience.jazz) { ambience = ambience.copy(jazz = it) }
+        slider("Conversazioni", ambience.conversations) { ambience = ambience.copy(conversations = it) }
+        slider("Bicchieri", ambience.glassware) { ambience = ambience.copy(glassware = it) }
+        slider("Porte", ambience.doors) { ambience = ambience.copy(doors = it) }
+        slider("Carte", ambience.cards) { ambience = ambience.copy(cards = it) }
+        root.addView(label("Il camino è sintetizzato offline. Jazz, voci e altri effetti saranno udibili quando saranno inclusi i file audio. Il volume delle carte è predisposto per i futuri effetti.", 13f, gold))
+        setContentView(scroll)
+    }
+
     private fun gameButton(root: LinearLayout, title: String, subtitle: String) {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
