@@ -37,6 +37,25 @@ jobs:
         run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
+      - name: Verify all 40 HD cards are actually inside the APK
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          apk = Path("app/build/outputs/apk/debug/app-debug.apk")
+          assert apk.is_file() and apk.stat().st_size > 1_000_000, "Missing or empty APK"
+          with ZipFile(apk) as archive:
+              names = set(archive.namelist())
+              expected = {f"assets/cards/{suit}_{n:02d}.jpg" for suit in ("coppe", "denari", "bastoni", "spade") for n in range(1, 11)}
+              missing = expected - names
+              assert not missing, f"APK missing HD cards: {sorted(missing)}"
+              for name in expected:
+                  info = archive.getinfo(name)
+                  assert info.file_size > 10000, f"Invalid card asset: {name}"
+                  with archive.open(name) as card:
+                      assert card.read(3) == bytes((255, 216, 255)), f"Not JPEG: {name}"
+          print("Verified: installable APK contains all 40 JPEG card assets.")
+          PY
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
