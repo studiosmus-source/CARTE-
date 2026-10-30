@@ -62,6 +62,9 @@ class Soundscape(private val random: Random = Random.Default) {
             var phase = 0.0
             var crackle = 0.0
             var warmth = 0.0
+            // Short, quiet room reflections: subtle ambience rather than an audible echo.
+            val reflections = DoubleArray(4096)
+            var reflectionIndex = 0
             while (running) {
                 val gain = volume(Channel.FIREPLACE).toDouble()
                 for (i in samples.indices) {
@@ -72,8 +75,12 @@ class Soundscape(private val random: Random = Random.Default) {
                     if (random.nextDouble() < 0.000055) crackle += random.nextDouble(0.12, 0.35)
                     phase += 2 * PI * 0.21 / sampleRate
                     val breath = 0.75 + 0.25 * sin(phase)
-                    val signal = (warmth * 5.5 * breath + low * 1.4 + noise * 0.008 + crackle * noise * 0.35) * gain
-                    samples[i] = (signal.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).toInt().toShort()
+                    val signal = (warmth * 5.5 * breath + low * 1.4 + noise * 0.0015 + crackle * noise * 0.22) * gain
+                    val reflected = reflections[reflectionIndex]
+                    val roomSignal = signal + reflected * 0.13
+                    reflections[reflectionIndex] = signal * 0.35 + reflected * 0.12
+                    reflectionIndex = (reflectionIndex + 1) % reflections.size
+                    samples[i] = (roomSignal.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).toInt().toShort()
                 }
                 var written = 0
                 while (running && written < samples.size) {
