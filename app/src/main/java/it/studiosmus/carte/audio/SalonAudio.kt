@@ -26,18 +26,24 @@ class SalonAudio(
     private var generation = 0
     private var settings = AmbienceSettings()
 
+    private fun mixVolume(name: String): Float = when (name) {
+        "salon_jazz" -> settings.jazz * if (transientActive) 0.38f else 0.70f
+        "salon_glassware" -> settings.glassware * 0.65f
+        "salon_door" -> settings.doors * 0.55f
+        "salon_conversation" -> settings.conversations * 0.50f
+        else -> 0f
+    }
+
+    private fun refreshMix() {
+        players.forEach { player ->
+            val gain = mixVolume(playerNames[player] ?: "")
+            player.setVolume(mixVolume(name), mixVolume(name))
+        }
+    }
+
     fun configure(value: AmbienceSettings) {
         settings = value.normalized()
-        players.forEach { player ->
-            val gain = when (playerNames[player]) {
-                "salon_jazz" -> settings.jazz
-                "salon_glassware" -> settings.glassware
-                "salon_door" -> settings.doors
-                "salon_conversation" -> settings.conversations
-                else -> 0f
-            }
-            player.setVolume(gain, gain)
-        }
+        refreshMix()
     }
 
     fun start() {
@@ -101,17 +107,20 @@ class SalonAudio(
         player.setVolume(gain, gain)
         players.add(player)
         playerNames[player] = name
+        refreshMix()
         player.setOnCompletionListener {
             players.remove(it)
             playerNames.remove(it)
             if (!loop && session == generation) transientActive = false
             it.release()
+            refreshMix()
         }
         player.setOnErrorListener { broken, _, _ ->
             players.remove(broken)
             playerNames.remove(broken)
             if (!loop && session == generation) transientActive = false
             broken.release()
+            refreshMix()
             true
         }
         try { player.start() } catch (_: IllegalStateException) {
@@ -119,6 +128,7 @@ class SalonAudio(
             playerNames.remove(player)
             if (!loop && session == generation) transientActive = false
             player.release()
+            refreshMix()
         }
     }
 }
