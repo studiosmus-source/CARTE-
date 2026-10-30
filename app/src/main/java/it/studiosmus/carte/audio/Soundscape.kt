@@ -61,6 +61,7 @@ class Soundscape(private val random: Random = Random.Default) {
             var low = 0.0
             var phase = 0.0
             var crackle = 0.0
+            var crackleBody = 0.0
             // Gentle, short room reflections added to the original fireplace sound.
             val reflections = DoubleArray(4096)
             var reflectionIndex = 0
@@ -73,7 +74,9 @@ class Soundscape(private val random: Random = Random.Default) {
                     if (random.nextDouble() < 0.00055) crackle += random.nextDouble(0.3, 0.85)
                     phase += 2 * PI * 0.21 / sampleRate
                     val breath = 0.75 + 0.25 * sin(phase)
-                    val signal = (low * 4.5 * breath + noise * 0.065 + crackle * noise) * gain
+                    // Retain original crackle timing; low-pass its sharp edge and add body.
+                    crackleBody = crackleBody * 0.84 + (crackle * noise) * 0.16
+                    val signal = (low * 4.5 * breath + noise * 0.038 + crackleBody * 1.55) * gain
                     val reflected = reflections[reflectionIndex]
                     val roomSignal = signal + reflected * 0.10
                     reflections[reflectionIndex] = signal * 0.30 + reflected * 0.08
