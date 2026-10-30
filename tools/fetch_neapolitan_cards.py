@@ -20,7 +20,9 @@ def main():
         for number, name in enumerate(NAMES, start=1):
             destination = OUT / f"{suit}_{number:02d}.jpg"
             if destination.is_file() and destination.stat().st_size > 10000:
-                continue
+                with destination.open("rb") as existing:
+                    if existing.read(3) == bytes((0xFF, 0xD8, 0xFF)):
+                        continue
             index = suit_index * 10 + number
             filename = f"{index:02d}_{name}_di_{suit}.jpg"
             if index == 40:
@@ -40,8 +42,14 @@ def main():
                     if attempt == 2:
                         raise
                     time.sleep(2 * (attempt + 1))
-    files = list(OUT.glob("*.jpg"))
-    assert len(files) >= 40, f"Expected 40 cards, found {len(files)}"
+    expected = {f"{suit}_{number:02d}.jpg" for suit in SUITS for number in range(1, 11)}
+    found = {p.name for p in OUT.glob("*.jpg")}
+    assert found == expected, f"Missing: {sorted(expected - found)}; unexpected: {sorted(found - expected)}"
+    for name in expected:
+        path = OUT / name
+        assert path.stat().st_size > 10000, f"Truncated image: {name}"
+        with path.open("rb") as stream:
+            assert stream.read(3) == bytes((0xFF, 0xD8, 0xFF)), f"Invalid JPEG: {name}"
     print("40 card images ready for offline packaging.")
 
 if __name__ == "__main__":
