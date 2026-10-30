@@ -151,6 +151,97 @@ class MainActivity : Activity() {
             .setPositiveButton("Torna al menu", null)
             .show()
     }
+    private fun startScopa() {
+        scopa = ScopaGame()
+        advanceScopaComputer()
+        renderScopa()
+    }
+
+    private fun advanceScopaComputer() {
+        val match = scopa ?: return
+        while (!match.finished && match.turn == 1) {
+            val (card, capture) = match.aiMove()
+            if (!match.play(1, card, capture)) break
+        }
+    }
+
+    private fun playScopaCard(card: Card) {
+        val match = scopa ?: return
+        val choices = match.options(card)
+        if (choices.size <= 1) {
+            if (match.play(0, card, choices.firstOrNull())) {
+                advanceScopaComputer()
+                renderScopa()
+            }
+            return
+        }
+        val labels = choices.map { capture ->
+            capture.joinToString(" + ") { cardName(it) }
+        }.toTypedArray()
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Scegli la presa")
+            .setItems(labels) { _, index ->
+                if (match.play(0, card, choices[index])) {
+                    advanceScopaComputer()
+                    renderScopa()
+                }
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun renderScopa() {
+        val match = scopa ?: return
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(16), dp(28), dp(16), dp(24))
+            background = panel(forest)
+        }
+        val scroll = ScrollView(this)
+        scroll.addView(root)
+        root.addView(label("‹ MENU", 15f, gold, true).apply {
+            setPadding(dp(8), dp(12), dp(8), dp(12))
+            setOnClickListener { scopa = null; showHome() }
+        })
+        root.addView(label("SCOPA", 34f, ivory, true))
+        root.addView(label("Scope: TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 17f, gold, true))
+        root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 14f, ivory))
+        root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 14f, gold))
+        root.addView(label("TAVOLO", 19f, ivory, true))
+        val tableText = if (match.table.isEmpty()) "Tavolo vuoto"
+            else match.table.joinToString("\n") { cardName(it) }
+        root.addView(label(tableText, 21f, ivory, true).apply {
+            background = panel(Color.rgb(23, 83, 64))
+            setPadding(dp(12), dp(20), dp(12), dp(20))
+        }, LinearLayout.LayoutParams(-1, -2))
+        root.addView(label(match.lastMove, 15f, gold))
+        if (match.finished) {
+            val score = match.score()
+            val outcome = when {
+                score[0] > score[1] -> "HAI VINTO!"
+                score[0] < score[1] -> "HA VINTO IL COMPUTER"
+                else -> "PAREGGIO"
+            }
+            root.addView(label(outcome, 26f, gold, true))
+            root.addView(label("Punti finali: ${score[0]} — ${score[1]}", 20f, ivory))
+            root.addView(Button(this).apply {
+                text = "NUOVA PARTITA"
+                setOnClickListener { startScopa() }
+            })
+        } else {
+            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 15f, gold, true))
+            match.hands[0].forEach { card ->
+                root.addView(Button(this).apply {
+                    text = cardName(card)
+                    isEnabled = match.turn == 0
+                    setOnClickListener { playScopaCard(card) }
+                }, LinearLayout.LayoutParams(-1, dp(60)))
+            }
+        }
+        setContentView(scroll)
+    }
+
     private fun startBriscola() {
         game = BriscolaGame()
         advanceComputer()
