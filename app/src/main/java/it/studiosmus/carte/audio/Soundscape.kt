@@ -61,16 +61,18 @@ class Soundscape(private val random: Random = Random.Default) {
             var low = 0.0
             var phase = 0.0
             var crackle = 0.0
+            var warmth = 0.0
             while (running) {
                 val gain = volume(Channel.FIREPLACE).toDouble()
                 for (i in samples.indices) {
                     val noise = random.nextDouble(-1.0, 1.0)
-                    low = low * 0.985 + noise * 0.015
-                    crackle *= 0.93
-                    if (random.nextDouble() < 0.00055) crackle += random.nextDouble(0.3, 0.85)
+                    low = low * 0.997 + noise * 0.003
+                    warmth = warmth * 0.965 + low * 0.035
+                    crackle *= 0.985
+                    if (random.nextDouble() < 0.000055) crackle += random.nextDouble(0.12, 0.35)
                     phase += 2 * PI * 0.21 / sampleRate
                     val breath = 0.75 + 0.25 * sin(phase)
-                    val signal = (low * 4.5 * breath + noise * 0.065 + crackle * noise) * gain
+                    val signal = (warmth * 5.5 * breath + low * 1.4 + noise * 0.008 + crackle * noise * 0.35) * gain
                     samples[i] = (signal.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).toInt().toShort()
                 }
                 var written = 0
