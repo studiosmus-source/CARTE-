@@ -116,11 +116,62 @@ class MainActivity : Activity() {
             private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
             private val ink = if (card.suit.name in listOf("DENARI", "COPPE"))
                 Color.rgb(156, 52, 38) else Color.rgb(35, 75, 65)
-            private val symbols = when (card.suit.name) {
-                "DENARI" -> "●"
-                "COPPE" -> "♜"
-                "SPADE" -> "⚔"
-                else -> "♣"
+            // Vector suit emblems avoid font-dependent emoji and stay crisp at any density.
+            private fun emblem(canvas: android.graphics.Canvas, cx: Float, cy: Float, scale: Float) {
+                canvas.save()
+                canvas.translate(cx, cy)
+                canvas.scale(scale, scale)
+                paint.style = android.graphics.Paint.Style.FILL
+                paint.color = ink
+                when (card.suit.name) {
+                    "DENARI" -> {
+                        paint.color = Color.rgb(202, 145, 46)
+                        canvas.drawCircle(0f, 0f, 11f, paint)
+                        paint.color = Color.rgb(130, 47, 36)
+                        canvas.drawCircle(0f, 0f, 7.5f, paint)
+                        paint.color = Color.rgb(237, 190, 80)
+                        canvas.drawCircle(0f, 0f, 4.5f, paint)
+                        paint.style = android.graphics.Paint.Style.STROKE
+                        paint.strokeWidth = 1.2f
+                        canvas.drawCircle(0f, 0f, 9.5f, paint)
+                    }
+                    "COPPE" -> {
+                        val bowl = android.graphics.Path().apply {
+                            moveTo(-11f, -7f); lineTo(11f, -7f)
+                            cubicTo(10f, 6f, 5f, 8f, 2f, 9f)
+                            lineTo(2f, 14f); lineTo(8f, 14f)
+                            lineTo(8f, 17f); lineTo(-8f, 17f)
+                            lineTo(-8f, 14f); lineTo(-2f, 14f)
+                            lineTo(-2f, 9f)
+                            cubicTo(-5f, 8f, -10f, 6f, -11f, -7f)
+                            close()
+                        }
+                        canvas.drawPath(bowl, paint)
+                        paint.style = android.graphics.Paint.Style.STROKE
+                        paint.strokeWidth = 2f
+                        canvas.drawArc(-15f, -8f, -6f, 6f, 90f, 180f, false, paint)
+                        canvas.drawArc(6f, -8f, 15f, 6f, -90f, 180f, false, paint)
+                    }
+                    "SPADE" -> {
+                        val blade = android.graphics.Path().apply {
+                            moveTo(0f, -18f); lineTo(5f, 5f); lineTo(0f, 10f)
+                            lineTo(-5f, 5f); close()
+                        }
+                        canvas.drawPath(blade, paint)
+                        canvas.drawRect(-9f, 9f, 9f, 12f, paint)
+                        canvas.drawRect(-2f, 12f, 2f, 19f, paint)
+                        canvas.drawCircle(0f, 19f, 2.5f, paint)
+                    }
+                    else -> {
+                        paint.strokeWidth = 5f
+                        paint.strokeCap = android.graphics.Paint.Cap.ROUND
+                        canvas.drawLine(-3f, 16f, 3f, -15f, paint)
+                        paint.style = android.graphics.Paint.Style.FILL
+                        canvas.drawOval(-11f, -17f, -1f, -3f, paint)
+                        canvas.drawOval(1f, -12f, 11f, 2f, paint)
+                    }
+                }
+                canvas.restore()
             }
             private fun text(canvas: android.graphics.Canvas, value: String, x: Float, y: Float,
                              size: Float, color: Int, bold: Boolean = false) {
@@ -163,10 +214,10 @@ class MainActivity : Activity() {
                         }
                     }
                     positions.forEach { (px, py) ->
-                        text(canvas, symbols, w * px, h * py + 9f * unit, 25f * unit, ink, true)
+                        emblem(canvas, w * px, h * py, 0.75f * unit)
                     }
                 } else {
-                    text(canvas, symbols, w / 2f, h * 0.47f, 36f * unit, ink, true)
+                    emblem(canvas, w / 2f, h * 0.44f, 1.7f * unit)
                     val figure = when (rank) { 8 -> "FANTE"; 9 -> "CAVALLO"; else -> "RE" }
                     text(canvas, figure, w / 2f, h * 0.64f, 12f * unit, ink, true)
                 }
