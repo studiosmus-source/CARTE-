@@ -37,7 +37,7 @@ class SalonAudio(
     private fun refreshMix() {
         players.forEach { player ->
             val gain = mixVolume(playerNames[player] ?: "")
-            player.setVolume(mixVolume(name), mixVolume(name))
+            player.setVolume(gain, gain)
         }
     }
 
