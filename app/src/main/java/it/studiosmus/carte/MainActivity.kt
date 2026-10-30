@@ -124,7 +124,7 @@ class MainActivity : Activity() {
             10 -> "RE"
             else -> card.rank.number.toString()
         }
-        return label("$face\\n$suit\\n${card.suit.name}", 14f,
+        return label("$face\n$suit\n${card.suit.name}", 14f,
             if (card.suit.name == "DENARI" || card.suit.name == "COPPE") Color.rgb(137, 40, 30) else forest,
             true).apply {
             background = panel(Color.rgb(255, 247, 225), 9, gold)
@@ -264,9 +264,9 @@ class MainActivity : Activity() {
         val audioStatus = if (available.size == recordings.size) {
             "Registrazioni ambientali disponibili: 4/4"
         } else {
-            "Registrazioni disponibili: ${available.size}/4\\n" +
+            "Registrazioni disponibili: ${available.size}/4\n" +
                 recordings.filterNot { it in available }
-                    .joinToString("\\n") { (title, _) -> "• $title: audio non ancora incluso" }
+                    .joinToString("\n") { (title, _) -> "• $title: audio non ancora incluso" }
         }
         root.addView(label("DIAGNOSTICA AUDIO", 18f, gold, true))
         root.addView(label(audioStatus, 14f, ivory).apply {
