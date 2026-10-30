@@ -3,8 +3,6 @@ package it.studiosmus.carte.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
-import android.os.Handler
-import android.os.Looper
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
@@ -18,7 +16,6 @@ class Soundscape(private val random: Random = Random.Default) {
     private val levels = Channel.entries.associateWith { if (it == Channel.FIREPLACE) 0.22f else 0.35f }.toMutableMap()
     private var track: AudioTrack? = null
     private var running = false
-    private val handler = Handler(Looper.getMainLooper())
     private var thread: Thread? = null
 
     fun volume(channel: Channel): Float = levels.getValue(channel)
@@ -89,6 +86,7 @@ class Soundscape(private val random: Random = Random.Default) {
     @Synchronized
     fun stop() {
         running = false
+        thread?.join(350)
         track?.pause()
         track?.flush()
         track?.release()
