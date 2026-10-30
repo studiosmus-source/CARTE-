@@ -9,6 +9,7 @@ import android.view.Gravity
 import android.view.View
 import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.audio.SalonAudio
+import it.studiosmus.carte.core.ScopaGame
 import it.studiosmus.carte.core.BriscolaGame
 import it.studiosmus.carte.core.Card
 import android.widget.Button
