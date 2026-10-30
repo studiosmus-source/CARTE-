@@ -29,9 +29,27 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Fetch and verify authentic Neapolitan HD card images
+      - name: Extract supplied HD card archive or fetch original images
         run: |
-          python3 tools/fetch_neapolitan_cards.py
+          if [ -f app/src/main/assets/CARTE-HD-assets.zip ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          archive = Path("app/src/main/assets/CARTE-HD-assets.zip")
+          with ZipFile(archive) as z:
+              expected = {f"app/src/main/assets/cards/{suit}_{n:02d}.jpg" for suit in ("coppe", "denari", "bastoni", "spade") for n in range(1, 11)}
+              names = {n for n in z.namelist() if not n.endswith("/")}
+              assert names == expected, f"Archive card set mismatch: {sorted(expected - names)}"
+              for name in expected:
+                  data = z.read(name)
+                  assert len(data) > 10000 and data[:3] == bytes((255, 216, 255)), f"Invalid card: {name}"
+                  dest = Path(name)
+                  dest.parent.mkdir(parents=True, exist_ok=True)
+                  dest.write_bytes(data)
+          PY
+          else
+            python3 tools/fetch_neapolitan_cards.py
+          fi
           test "$(find app/src/main/assets/cards -maxdepth 1 -name '*.jpg' | wc -l)" -eq 40
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
