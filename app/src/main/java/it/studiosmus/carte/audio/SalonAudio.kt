@@ -25,10 +25,6 @@ class SalonAudio(
 
     fun configure(value: AmbienceSettings) {
         settings = value.normalized()
-        players.forEach { player ->
-            // Event-specific gain is applied at creation; new events use the new mix.
-            if (!player.isPlaying) return@forEach
-        }
     }
 
     fun start() {
