@@ -2,6 +2,8 @@ package it.studiosmus.carte
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -25,6 +27,8 @@ import android.widget.TextView
  * Uses Android platform widgets without additional UI dependencies.
  */
 class MainActivity : Activity() {
+    private val gameHandler = Handler(Looper.getMainLooper())
+    private var computerPending = false
     private var game: BriscolaGame? = null
     private var scopa: ScopaGame? = null
     private val soundscape = Soundscape()
@@ -68,6 +72,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        gameHandler.removeCallbacksAndMessages(null)
         soundscape.release()
         salonAudio.stop()
         super.onDestroy()
@@ -574,6 +579,8 @@ class MainActivity : Activity() {
     }
 
     private fun startBriscola() {
+        gameHandler.removeCallbacksAndMessages(null)
+        computerPending = false
         game = BriscolaGame()
         advanceComputer()
         renderBriscola()
@@ -581,9 +588,17 @@ class MainActivity : Activity() {
 
     private fun advanceComputer() {
         val match = game ?: return
-        while (!match.finished && match.turn == 1) {
-            match.play(1, match.aiCard())
-        }
+        if (match.finished || match.turn != 1 || computerPending) return
+        computerPending = true
+        gameHandler.postDelayed({
+            computerPending = false
+            if (game !== match || match.finished || match.turn != 1) return@postDelayed
+            if (match.play(1, match.aiCard())) {
+                renderBriscola()
+                // Show the computer's lead card before the human responds.
+                if (match.turn == 1) advanceComputer()
+            }
+        }, 850L)
     }
 
     private fun cardName(card: Card): String =
@@ -608,7 +623,12 @@ class MainActivity : Activity() {
         }
         header.addView(label("‹ MENU", 14f, gold, true).apply {
             setPadding(dp(8), dp(10), dp(8), dp(10))
-            setOnClickListener { game = null; showHome() }
+            setOnClickListener {
+                gameHandler.removeCallbacksAndMessages(null)
+                computerPending = false
+                game = null
+                showHome()
+            }
         })
         header.addView(label("BRISCOLA", 25f, ivory, true),
             LinearLayout.LayoutParams(0, -2, 1f))
@@ -641,8 +661,8 @@ class MainActivity : Activity() {
             root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
             root.addView(cardRow(match.hands[0]) { card ->
                 if (match.turn == 0 && match.play(0, card)) {
-                    advanceComputer()
                     renderBriscola()
+                    advanceComputer()
                 }
             })
         }
