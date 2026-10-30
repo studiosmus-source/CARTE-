@@ -265,14 +265,14 @@ class MainActivity : Activity() {
     private fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), dp(8), dp(4), dp(8))
+            gravity = Gravity.CENTER
+            setPadding(dp(2), dp(6), dp(2), dp(6))
         }
         cards.forEach { card ->
             val tile = if (action == null) cardTile(card) else cardTile(card, true) { action(card) }
             // Match the original 1920×3173 scans without stretching the artwork.
             val params = LinearLayout.LayoutParams(dp(78), dp(129))
-            params.setMargins(dp(4), 0, dp(4), 0)
+            params.setMargins(dp(3), 0, dp(3), 0)
             row.addView(tile, params)
         }
         return HorizontalScrollView(this).apply {
