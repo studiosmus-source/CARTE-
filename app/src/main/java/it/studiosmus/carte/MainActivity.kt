@@ -110,7 +110,27 @@ class MainActivity : Activity() {
             else typeface = Typeface.SERIF
         }
 
-    // Self-contained painted cards: no external assets and no gameplay engine changes.
+    // Share decoded artwork between repeated cards and screens. Decode at display resolution
+    // instead of allocating 40 full-size (1920x3173) bitmaps on the UI thread.
+    private val cardBitmapCache = mutableMapOf<String, android.graphics.Bitmap>()
+    private fun cardArtwork(card: Card): android.graphics.Bitmap? {
+        cardBitmapCache[card.id]?.let { return it }
+        return try {
+            val path = "cards/${card.id}.jpg"
+            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            assets.open(path).use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+            var sample = 1
+            while (bounds.outWidth / (sample * 2) >= 360 && bounds.outHeight / (sample * 2) >= 500) sample *= 2
+            val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+            assets.open(path).use { stream ->
+                android.graphics.BitmapFactory.decodeStream(stream, null, options)?.also {
+                    cardBitmapCache[card.id] = it
+                }
+            }
+        } catch (_: java.io.IOException) { null }
+    }
+
+    // HD original artwork is preferred; the painted fallback is used only if an asset is missing.
     private fun cardTile(card: Card, enabled: Boolean = false, action: (() -> Unit)? = null): View =
         object : View(this) {
             private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
@@ -182,15 +202,7 @@ class MainActivity : Activity() {
                 paint.textSize = size
                 canvas.drawText(value, x, y, paint)
             }
-            private val artwork: android.graphics.Bitmap? by lazy {
-                try {
-                    assets.open("cards/${card.id}.jpg").use { stream ->
-                        android.graphics.BitmapFactory.decodeStream(stream)
-                    }
-                } catch (_: java.io.IOException) {
-                    null
-                }
-            }
+            private val artwork: android.graphics.Bitmap? by lazy { cardArtwork(card) }
             override fun onDraw(canvas: android.graphics.Canvas) {
                 super.onDraw(canvas)
                 val w = width.toFloat()
