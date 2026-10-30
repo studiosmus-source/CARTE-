@@ -22,6 +22,8 @@ class SalonAudio(
     private val pending = mutableListOf<Runnable>()
     private val playerNames = mutableMapOf<MediaPlayer, String>()
     private var running = false
+    private var transientActive = false
+    private var generation = 0
     private var settings = AmbienceSettings()
 
     fun configure(value: AmbienceSettings) {
@@ -41,12 +43,15 @@ class SalonAudio(
     fun start() {
         if (running) return
         running = true
+        generation++
         playLoop("salon_jazz", settings.jazz)
         AmbienceScheduler.Event.entries.forEach { schedule(it) }
     }
 
     fun stop() {
         running = false
+        generation++
+        transientActive = false
         pending.forEach(handler::removeCallbacks)
         pending.clear()
         players.toList().forEach { it.release() }
@@ -65,7 +70,8 @@ class SalonAudio(
                     AmbienceScheduler.Event.DOOR -> "salon_door" to settings.doors
                     AmbienceScheduler.Event.CONVERSATION -> "salon_conversation" to settings.conversations
                 }
-                playOnce(name, gain)
+                // Only one occasional foreground event at a time: no stacked doors/glasses/voices.
+                if (!transientActive) playOnce(name, gain)
                 schedule(event)
             }
         }
@@ -88,16 +94,31 @@ class SalonAudio(
         if (!running || gain <= 0f) return
         val id = rawId(name)
         if (id == 0) return
-        val player = MediaPlayer.create(context, id) ?: return
+        val player = try { MediaPlayer.create(context, id) } catch (_: RuntimeException) { null } ?: return
+        val session = generation
         player.isLooping = loop
+        if (!loop) transientActive = true
         player.setVolume(gain, gain)
         players.add(player)
         playerNames[player] = name
         player.setOnCompletionListener {
             players.remove(it)
             playerNames.remove(it)
+            if (!loop && session == generation) transientActive = false
             it.release()
         }
-        player.start()
+        player.setOnErrorListener { broken, _, _ ->
+            players.remove(broken)
+            playerNames.remove(broken)
+            if (!loop && session == generation) transientActive = false
+            broken.release()
+            true
+        }
+        try { player.start() } catch (_: IllegalStateException) {
+            players.remove(player)
+            playerNames.remove(player)
+            if (!loop && session == generation) transientActive = false
+            player.release()
+        }
     }
 }
