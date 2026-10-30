@@ -7,6 +7,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.core.BriscolaGame
 import it.studiosmus.carte.core.Card
 import android.widget.Button
@@ -20,6 +21,8 @@ import android.widget.TextView
  */
 class MainActivity : Activity() {
     private var game: BriscolaGame? = null
+    private val soundscape = Soundscape()
+    private var fireplaceEnabled = false
     private val ivory = Color.rgb(247, 233, 203)
     private val gold = Color.rgb(218, 174, 94)
     private val forest = Color.rgb(13, 54, 45)
@@ -29,6 +32,21 @@ class MainActivity : Activity() {
         window.statusBarColor = Color.rgb(8, 35, 30)
         window.navigationBarColor = Color.rgb(8, 35, 30)
         showHome()
+    }
+
+    override fun onPause() {
+        soundscape.stop()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (fireplaceEnabled) soundscape.start()
+    }
+
+    override fun onDestroy() {
+        soundscape.release()
+        super.onDestroy()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -78,6 +96,17 @@ class MainActivity : Activity() {
         gameButton(root, "BRISCOLA", "Strategia, memoria e colpi di scena")
         gameButton(root, "SCOPA", "Ogni presa conta")
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(16)))
+        val fireplace = label("CAMINO: ACCENDI", 16f, ivory, true).apply {
+            setPadding(dp(10), dp(14), dp(10), dp(14))
+            background = panel(Color.rgb(20, 65, 54))
+            setOnClickListener {
+                fireplaceEnabled = !fireplaceEnabled
+                if (fireplaceEnabled) soundscape.start() else soundscape.stop()
+                text = if (fireplaceEnabled) "CAMINO ACCESO - TOCCA PER SPEGNERE"
+                       else "CAMINO: ACCENDI"
+            }
+        }
+        root.addView(fireplace, LinearLayout.LayoutParams(-1, dp(64)))
         root.addView(label("SOLO OFFLINE  •  NESSUN ACCOUNT", 11f, gold))
         root.addView(label("Versione iniziale · Partite in preparazione", 12f, ivory))
         setContentView(scroll)
