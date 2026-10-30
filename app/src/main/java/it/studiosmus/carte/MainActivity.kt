@@ -447,6 +447,7 @@ class MainActivity : Activity() {
         root.addView(label("Scope: TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 17f, gold, true))
         root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 14f, ivory))
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 14f, gold))
+        root.addView(cardBackRow(match.hands[1].size))
         root.addView(label("TAVOLO", 19f, ivory, true))
         val tableText = if (match.table.isEmpty()) "Tavolo vuoto"
             else match.table.joinToString("\n") { cardName(it) }
