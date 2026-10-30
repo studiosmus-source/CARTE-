@@ -591,20 +591,21 @@ class MainActivity : Activity() {
         root.addView(back)
         root.addView(label("BRISCOLA", 34f, ivory, true))
         root.addView(label("TU ${match.points[0]}  —  ${match.points[1]} COMPUTER", 20f, gold, true))
-        root.addView(View(this), LinearLayout.LayoutParams(1, dp(22)))
+        root.addView(View(this), LinearLayout.LayoutParams(1, dp(8)))
         root.addView(label("AVVERSARIO", 13f, gold))
         root.addView(cardBackRow(match.hands[1].size))
-        root.addView(View(this), LinearLayout.LayoutParams(1, dp(20)))
+        root.addView(View(this), LinearLayout.LayoutParams(1, dp(8)))
         root.addView(label("BRISCOLA: ${match.trump.name}", 17f, ivory, true))
         root.addView(label("Mazzo: ${match.remainingCards} carte", 14f, gold))
         val lead = match.lead
-        val tableText = if (lead == null) "TAVOLO LIBERO" else
-            "${if (lead.first == 0) "Hai giocato" else "Il computer ha giocato"}\n${cardName(lead.second)}"
-        val table = label(tableText, 21f, ivory, true).apply {
-            background = panel(Color.rgb(23, 83, 64), 22)
-            setPadding(dp(12), dp(24), dp(12), dp(24))
+        // Keep the active trick visible: no fixed-height message panel that clips text.
+        val tableText = if (lead == null) "Tavolo libero" else
+            if (lead.first == 0) "Hai giocato" else "Il computer ha giocato"
+        val table = label(tableText, 16f, ivory, true).apply {
+            background = panel(Color.rgb(23, 83, 64), 16)
+            setPadding(dp(12), dp(10), dp(12), dp(10))
         }
-        root.addView(table, LinearLayout.LayoutParams(-1, dp(85)))
+        root.addView(table, LinearLayout.LayoutParams(-1, -2))
         if (lead != null) root.addView(cardRow(listOf(lead.second)))
         root.addView(label(match.lastTrick, 15f, gold))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(16)))
