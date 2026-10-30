@@ -515,8 +515,8 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(16), dp(28), dp(16), dp(24))
-            background = panel(forest)
+            setPadding(dp(12), dp(12), dp(12), dp(16))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22)))
         }
         val scroll = ScrollView(this).apply { isFillViewport = true }
         scroll.addView(root)
@@ -524,17 +524,27 @@ class MainActivity : Activity() {
             setPadding(dp(8), dp(12), dp(8), dp(12))
             setOnClickListener { scopa = null; showHome() }
         })
-        root.addView(label("SCOPA", 34f, ivory, true))
-        root.addView(label("Scope: TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 17f, gold, true))
-        root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 14f, ivory))
-        root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 14f, gold))
+        root.addView(label("SCOPA", 26f, ivory, true))
+        root.addView(label("SCOPE · TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 15f, gold, true))
+        root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
+        root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
         root.addView(cardBackRow(match.hands[1].size))
-        root.addView(label("TAVOLO", 19f, ivory, true))
-        val tableText = if (match.table.isEmpty()) "Tavolo vuoto"
-            else match.table.joinToString("\n") { cardName(it) }
-        if (match.table.isEmpty()) root.addView(label(tableText, 18f, ivory))
-        else root.addView(cardRow(match.table))
-        root.addView(label(match.lastMove, 15f, gold))
+        val felt = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(12), dp(8), dp(12))
+            background = panel(Color.rgb(18, 83, 62), 22, Color.rgb(121, 139, 82))
+        }
+        felt.addView(label("SUL TAVOLO", 13f, gold, true))
+        if (match.table.isEmpty()) {
+            felt.addView(label("Tavolo libero", 15f, ivory).apply {
+                setPadding(dp(8), dp(24), dp(8), dp(24))
+            })
+        } else {
+            felt.addView(cardRow(match.table))
+        }
+        root.addView(felt, LinearLayout.LayoutParams(-1, -2))
+        root.addView(label(match.lastMove, 13f, gold))
         if (match.finished) {
             val score = match.score()
             val outcome = when {
@@ -549,7 +559,7 @@ class MainActivity : Activity() {
                 setOnClickListener { startScopa() }
             })
         } else {
-            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 15f, gold, true))
+            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
             root.addView(cardRow(match.hands[0]) { card -> if (match.turn == 0) playScopaCard(card) })
         }
         setContentView(scroll)
