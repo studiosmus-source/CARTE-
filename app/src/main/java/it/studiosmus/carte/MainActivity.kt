@@ -600,12 +600,17 @@ class MainActivity : Activity() {
         }
         val scroll = ScrollView(this).apply { isFillViewport = true }
         scroll.addView(root)
-        val back = label("‹ MENU", 15f, gold, true).apply {
-            setPadding(dp(8), dp(12), dp(8), dp(12))
-            setOnClickListener { game = null; showHome() }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
-        root.addView(back)
-        root.addView(label("BRISCOLA", 26f, ivory, true))
+        header.addView(label("‹ MENU", 14f, gold, true).apply {
+            setPadding(dp(8), dp(10), dp(8), dp(10))
+            setOnClickListener { game = null; showHome() }
+        })
+        header.addView(label("BRISCOLA", 25f, ivory, true),
+            LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(header, LinearLayout.LayoutParams(-1, -2))
         root.addView(label("TU ${match.points[0]}  —  ${match.points[1]} COMPUTER", 16f, gold, true))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(8)))
         root.addView(label("AVVERSARIO", 12f, gold))
