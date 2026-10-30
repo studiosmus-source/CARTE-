@@ -26,6 +26,8 @@ class ScopaGameTest {
                 val all = game.hands.flatten() + game.table + game.captured.flatten()
                 assertEquals("Duplicate cards seed=$seed", all.size, all.toSet().size)
                 assertTrue("More than 40 cards seed=$seed", all.size <= 40)
+                assertEquals("Lost cards seed=$seed", 40, all.size + (36 - moves))
+                assertTrue("Negative scope seed=$seed", game.scope.all { it >= 0 })
             }
             assertEquals(36, moves)
             assertTrue(game.hands.all { it.isEmpty() })
