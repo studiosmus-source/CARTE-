@@ -43,6 +43,12 @@ class SalonAudio(
 
     fun configure(value: AmbienceSettings) {
         settings = value.normalized()
+        // The music may have been skipped when the app started with its slider at zero.
+        // Start it when the user raises the volume, without restarting other layers.
+        if (running && settings.jazz > 0f &&
+            playerNames.values.none { it == "salon_jazz" }) {
+            playLoop("salon_jazz", settings.jazz)
+        }
         refreshMix()
     }
 
