@@ -26,6 +26,16 @@ class SalonAudio(
 
     fun configure(value: AmbienceSettings) {
         settings = value.normalized()
+        players.forEach { player ->
+            val gain = when (playerNames[player]) {
+                "salon_jazz" -> settings.jazz
+                "salon_glassware" -> settings.glassware
+                "salon_door" -> settings.doors
+                "salon_conversation" -> settings.conversations
+                else -> 0f
+            }
+            player.setVolume(gain, gain)
+        }
     }
 
     fun start() {
