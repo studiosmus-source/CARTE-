@@ -22,16 +22,16 @@ def main():
             if destination.is_file() and destination.stat().st_size > 10000:
                 continue
             index = suit_index * 10 + number
-            filename = f"{index:02d} {name} di {suit}.jpg"
+            filename = f"{index:02d}_{name}_di_{suit}.jpg"
             if index == 40:
-                filename = "40 Dieci di Bastoni.jpg"
+                filename = "40_Dieci_di_Bastoni.jpg"
             url = "https://commons.wikimedia.org/wiki/Special:Redirect/file/" + quote(filename)
             req = Request(url, headers={"User-Agent": "CARTE-Android-AssetPrep/1.0 (Wikimedia Commons public domain)"})
             for attempt in range(3):
                 try:
                     with urlopen(req, timeout=40) as response:
                         data = response.read()
-                    if not data.startswith(b"\\xff\\xd8\\xff"):
+                    if not data.startswith(bytes((0xFF, 0xD8, 0xFF))):
                         raise ValueError(f"Not a JPEG: {filename}")
                     destination.write_bytes(data)
                     print(f"{index:02d}/40 {destination.name} ({len(data)} bytes)")
