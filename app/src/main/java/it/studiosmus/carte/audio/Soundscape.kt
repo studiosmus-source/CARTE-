@@ -61,42 +61,22 @@ class Soundscape(private val random: Random = Random.Default) {
             var low = 0.0
             var phase = 0.0
             var crackle = 0.0
-            var warmth = 0.0
-            var crackleTone = 0.0
-            var crackleSamples = 0
-            var cracklePolarity = 1.0
-            // Short, quiet room reflections: subtle ambience rather than an audible echo.
+            // Gentle, short room reflections added to the original fireplace sound.
             val reflections = DoubleArray(4096)
             var reflectionIndex = 0
             while (running) {
                 val gain = volume(Channel.FIREPLACE).toDouble()
                 for (i in samples.indices) {
                     val noise = random.nextDouble(-1.0, 1.0)
-                    low = low * 0.997 + noise * 0.003
-                    warmth = warmth * 0.965 + low * 0.035
-                    // Occasional wood snaps with short textured tails, not a continuous hiss.
-                    if (crackleSamples == 0 && random.nextDouble() < 0.00013) {
-                        crackleSamples = random.nextInt(90, 360)
-                        crackle = random.nextDouble(0.35, 0.85)
-                        cracklePolarity = if (random.nextBoolean()) 1.0 else -1.0
-                    }
-                    var snap = 0.0
-                    if (crackleSamples > 0) {
-                        // A quick attack followed by a damped, irregular crackle.
-                        crackleTone = crackleTone * 0.62 + noise * 0.38
-                        snap = crackle * (0.55 * crackleTone + 0.45 * cracklePolarity)
-                        crackle *= 0.974
-                        crackleSamples--
-                    } else {
-                        crackleTone *= 0.62
-                    }
+                    low = low * 0.985 + noise * 0.015
+                    crackle *= 0.93
+                    if (random.nextDouble() < 0.00055) crackle += random.nextDouble(0.3, 0.85)
                     phase += 2 * PI * 0.21 / sampleRate
                     val breath = 0.75 + 0.25 * sin(phase)
-                    // Background is intentionally very quiet; snaps carry the fireplace identity.
-                    val signal = (warmth * 0.95 * breath + low * 0.22 + snap * 0.70) * gain * 0.75
+                    val signal = (low * 4.5 * breath + noise * 0.065 + crackle * noise) * gain
                     val reflected = reflections[reflectionIndex]
-                    val roomSignal = signal * 0.88 + reflected * 0.20
-                    reflections[reflectionIndex] = signal * 0.38 + reflected * 0.10
+                    val roomSignal = signal + reflected * 0.10
+                    reflections[reflectionIndex] = signal * 0.30 + reflected * 0.08
                     reflectionIndex = (reflectionIndex + 1) % reflections.size
                     samples[i] = (roomSignal.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).toInt().toShort()
                 }
