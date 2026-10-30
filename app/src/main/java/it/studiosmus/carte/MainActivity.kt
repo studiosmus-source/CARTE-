@@ -403,7 +403,12 @@ class MainActivity : Activity() {
         scroll.addView(root)
         root.addView(label("‹ TORNA AL SALOTTO", 17f, gold, true).apply {
             setPadding(dp(10), dp(14), dp(10), dp(14))
-            setOnClickListener { if (returnToBriscola && game != null) renderBriscola() else showHome() }
+            setOnClickListener {
+                if (returnToBriscola && game != null) {
+                    renderBriscola()
+                    advanceComputer()
+                } else showHome()
+            }
         })
         root.addView(label("ATMOSFERA", 34f, ivory, true))
         root.addView(label("Regola ogni suono in modo indipendente", 15f, gold))
@@ -658,7 +663,13 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(label("⚙", 23f, gold).apply {
             setPadding(dp(12), dp(4), dp(12), dp(4))
-            setOnClickListener { showAudioSettings(returnToBriscola = true) }
+            setOnClickListener {
+                // Finish the current trick before opening settings: a pending
+                // callback must never replace the settings screen unexpectedly.
+                if (!trickResolving && !computerPending) {
+                    showAudioSettings(returnToBriscola = true)
+                }
+            }
         })
         root.addView(header, LinearLayout.LayoutParams(-1, -2))
         root.addView(cardBackRow(match.hands[1].size))
