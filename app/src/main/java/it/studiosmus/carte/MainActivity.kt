@@ -137,11 +137,12 @@ class MainActivity : Activity() {
         gameButton(root, "BRISCOLA", "Strategia, memoria e colpi di scena")
         gameButton(root, "SCOPA", "Ogni presa conta")
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(16)))
-        val fireplace = label("CAMINO: ACCENDI", 16f, ivory, true).apply {
+        val fireplace = label(if (fireplaceEnabled) "CAMINO ACCESO - TOCCA PER SPEGNERE" else "CAMINO: ACCENDI", 16f, ivory, true).apply {
             setPadding(dp(10), dp(14), dp(10), dp(14))
             background = panel(Color.rgb(20, 65, 54))
             setOnClickListener {
                 fireplaceEnabled = !fireplaceEnabled
+                saveAmbience()
                 if (fireplaceEnabled) {
                     soundscape.start()
                     salonAudio.start()
@@ -154,6 +155,11 @@ class MainActivity : Activity() {
             }
         }
         root.addView(fireplace, LinearLayout.LayoutParams(-1, dp(64)))
+        root.addView(label("⚙ IMPOSTAZIONI AUDIO", 18f, ivory, true).apply {
+            setPadding(dp(12), dp(18), dp(12), dp(18))
+            background = panel(Color.rgb(20, 65, 54))
+            setOnClickListener { showAudioSettings() }
+        }, LinearLayout.LayoutParams(-1, dp(66)))
         root.addView(label("SOLO OFFLINE  •  NESSUN ACCOUNT", 11f, gold))
         root.addView(label("Versione iniziale · Partite in preparazione", 12f, ivory))
         setContentView(scroll)
