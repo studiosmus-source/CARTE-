@@ -62,25 +62,43 @@ class Soundscape(private val random: Random = Random.Default) {
             var phase = 0.0
             var crackle = 0.0
             var crackleBody = 0.0
-            // Gentle, short room reflections added to the original fireplace sound.
-            val reflections = DoubleArray(4096)
-            var reflectionIndex = 0
+            var crackleEdge = 0.0
+            // Several quiet reflections create a room tail, not a single slapback echo.
+            val roomA = DoubleArray(1543)
+            val roomB = DoubleArray(2789)
+            val roomC = DoubleArray(4217)
+            var roomIndex = 0L
             while (running) {
                 val gain = volume(Channel.FIREPLACE).toDouble()
                 for (i in samples.indices) {
                     val noise = random.nextDouble(-1.0, 1.0)
                     low = low * 0.985 + noise * 0.015
+                    // Preserve the original irregular wood-crackle events.
                     crackle *= 0.93
                     if (random.nextDouble() < 0.00055) crackle += random.nextDouble(0.3, 0.85)
+                    val rawCrackle = crackle * noise
+                    // Two frequency bands: a rounded low-mid snap plus some audible texture.
+                    crackleBody = crackleBody * 0.72 + rawCrackle * 0.28
+                    crackleEdge = crackleEdge * 0.38 + rawCrackle * 0.62
                     phase += 2 * PI * 0.21 / sampleRate
                     val breath = 0.75 + 0.25 * sin(phase)
-                    // Retain original crackle timing; low-pass its sharp edge and add body.
-                    crackleBody = crackleBody * 0.84 + (crackle * noise) * 0.16
-                    val signal = (low * 4.5 * breath + noise * 0.038 + crackleBody * 1.55) * gain
-                    val reflected = reflections[reflectionIndex]
-                    val roomSignal = signal + reflected * 0.10
-                    reflections[reflectionIndex] = signal * 0.30 + reflected * 0.08
-                    reflectionIndex = (reflectionIndex + 1) % reflections.size
+                    // Quiet, warm bed. The wood snaps remain clearly above the bed.
+                    val bed = low * 2.3 * breath + noise * 0.007
+                    val snap = crackleBody * 1.45 + crackleEdge * 0.52
+                    val direct = (bed + snap) * gain * 0.68
+                    val ia = (roomIndex % roomA.size).toInt()
+                    val ib = (roomIndex % roomB.size).toInt()
+                    val ic = (roomIndex % roomC.size).toInt()
+                    val reflectedA = roomA[ia]
+                    val reflectedB = roomB[ib]
+                    val reflectedC = roomC[ic]
+                    // Short and medium diffuse reflections with a decaying tail.
+                    roomA[ia] = direct * 0.40 + reflectedA * 0.25
+                    roomB[ib] = direct * 0.32 + reflectedB * 0.32
+                    roomC[ic] = direct * 0.25 + reflectedC * 0.36
+                    roomIndex++
+                    val roomSignal = direct * 0.72 +
+                        reflectedA * 0.36 + reflectedB * 0.32 + reflectedC * 0.27
                     samples[i] = (roomSignal.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).toInt().toShort()
                 }
                 var written = 0
