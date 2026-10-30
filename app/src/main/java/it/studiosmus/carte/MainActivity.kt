@@ -520,11 +520,17 @@ class MainActivity : Activity() {
         }
         val scroll = ScrollView(this).apply { isFillViewport = true }
         scroll.addView(root)
-        root.addView(label("‹ MENU", 15f, gold, true).apply {
-            setPadding(dp(8), dp(12), dp(8), dp(12))
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        header.addView(label("‹ MENU", 14f, gold, true).apply {
+            setPadding(dp(8), dp(10), dp(8), dp(10))
             setOnClickListener { scopa = null; showHome() }
         })
-        root.addView(label("SCOPA", 26f, ivory, true))
+        header.addView(label("SCOPA", 25f, ivory, true),
+            LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(header, LinearLayout.LayoutParams(-1, -2))
         root.addView(label("SCOPE · TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 15f, gold, true))
         root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
