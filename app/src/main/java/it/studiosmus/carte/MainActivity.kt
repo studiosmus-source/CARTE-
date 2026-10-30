@@ -110,25 +110,70 @@ class MainActivity : Activity() {
             else typeface = Typeface.SERIF
         }
 
-    // Reusable card-shaped view; keeps all gameplay wired to the existing engines.
-    private fun cardTile(card: Card, enabled: Boolean = false, action: (() -> Unit)? = null): TextView {
-        val suit = when (card.suit.name) {
-            "DENARI" -> "●"
-            "COPPE" -> "♜"
-            "SPADE" -> "⚔"
-            else -> "♣"
-        }
-        val face = when (card.rank.number) {
-            8 -> "FANTE"
-            9 -> "CAVALLO"
-            10 -> "RE"
-            else -> card.rank.number.toString()
-        }
-        return label("$face\n$suit\n${card.suit.name}", 14f,
-            if (card.suit.name == "DENARI" || card.suit.name == "COPPE") Color.rgb(137, 40, 30) else forest,
-            true).apply {
-            background = panel(Color.rgb(255, 247, 225), 9, gold)
-            setPadding(dp(5), dp(6), dp(5), dp(6))
+    // Self-contained painted cards: no external assets and no gameplay engine changes.
+    private fun cardTile(card: Card, enabled: Boolean = false, action: (() -> Unit)? = null): View =
+        object : View(this) {
+            private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+            private val ink = if (card.suit.name in listOf("DENARI", "COPPE"))
+                Color.rgb(156, 52, 38) else Color.rgb(35, 75, 65)
+            private val symbols = when (card.suit.name) {
+                "DENARI" -> "●"
+                "COPPE" -> "♜"
+                "SPADE" -> "⚔"
+                else -> "♣"
+            }
+            private fun text(canvas: android.graphics.Canvas, value: String, x: Float, y: Float,
+                             size: Float, color: Int, bold: Boolean = false) {
+                paint.color = color
+                paint.style = android.graphics.Paint.Style.FILL
+                paint.textAlign = android.graphics.Paint.Align.CENTER
+                paint.typeface = if (bold) Typeface.create(Typeface.SERIF, Typeface.BOLD) else Typeface.SERIF
+                paint.textSize = size
+                canvas.drawText(value, x, y, paint)
+            }
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                super.onDraw(canvas)
+                val w = width.toFloat()
+                val h = height.toFloat()
+                val unit = w / 92f
+                paint.style = android.graphics.Paint.Style.FILL
+                paint.color = Color.rgb(251, 240, 212)
+                canvas.drawRoundRect(1f, 1f, w - 1f, h - 1f, 9f * unit, 9f * unit, paint)
+                paint.style = android.graphics.Paint.Style.STROKE
+                paint.strokeWidth = 2f * unit
+                paint.color = Color.rgb(189, 145, 76)
+                canvas.drawRoundRect(5f * unit, 5f * unit, w - 5f * unit, h - 5f * unit,
+                    6f * unit, 6f * unit, paint)
+                paint.strokeWidth = 0.7f * unit
+                canvas.drawRoundRect(9f * unit, 9f * unit, w - 9f * unit, h - 9f * unit,
+                    3f * unit, 3f * unit, paint)
+                paint.style = android.graphics.Paint.Style.FILL
+                val rank = card.rank.number
+                val title = when (rank) { 8 -> "F"; 9 -> "C"; 10 -> "R"; else -> rank.toString() }
+                text(canvas, title, 18f * unit, 25f * unit, 17f * unit, ink, true)
+                text(canvas, title, w - 18f * unit, h - 13f * unit, 17f * unit, ink, true)
+                if (rank <= 7) {
+                    val positions = when (rank) {
+                        1 -> listOf(0.5f to 0.5f)
+                        2 -> listOf(0.5f to 0.32f, 0.5f to 0.68f)
+                        3 -> listOf(0.5f to 0.27f, 0.5f to 0.5f, 0.5f to 0.73f)
+                        else -> (0 until rank).map { i ->
+                            (if (i % 2 == 0) 0.32f else 0.68f) to
+                                (0.25f + (i / 2) * 0.16f).coerceAtMost(0.78f)
+                        }
+                    }
+                    positions.forEach { (px, py) ->
+                        text(canvas, symbols, w * px, h * py + 9f * unit, 25f * unit, ink, true)
+                    }
+                } else {
+                    text(canvas, symbols, w / 2f, h * 0.47f, 36f * unit, ink, true)
+                    val figure = when (rank) { 8 -> "FANTE"; 9 -> "CAVALLO"; else -> "RE" }
+                    text(canvas, figure, w / 2f, h * 0.64f, 12f * unit, ink, true)
+                }
+                text(canvas, card.suit.name, w / 2f, h - 27f * unit, 9f * unit, ink, true)
+            }
+        }.apply {
+            contentDescription = "${card.rank.number} ${card.suit.name}"
             isEnabled = enabled || action == null
             if (action != null) {
                 isClickable = true
@@ -136,7 +181,6 @@ class MainActivity : Activity() {
                 setOnClickListener { action() }
             }
         }
-    }
 
     private fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null): View {
         val row = LinearLayout(this).apply {
