@@ -681,12 +681,17 @@ class MainActivity : Activity() {
             table.addView(trump, FrameLayout.LayoutParams(dp(78), dp(129), Gravity.START or Gravity.CENTER_VERTICAL).apply {
                 leftMargin = dp(38)
             })
-            val back = cardBackRow(1)
-            table.addView(back, FrameLayout.LayoutParams(dp(90), dp(120), Gravity.START or Gravity.CENTER_VERTICAL))
+            if (match.remainingCards > 1) {
+                val back = cardBackRow(1)
+                table.addView(back, FrameLayout.LayoutParams(dp(90), dp(120),
+                    Gravity.START or Gravity.CENTER_VERTICAL))
+            }
             table.addView(label("${match.remainingCards}", 17f, ivory, true).apply {
                 background = panel(Color.rgb(17, 63, 52), 18)
-            }, FrameLayout.LayoutParams(dp(44), dp(38), Gravity.START or Gravity.CENTER_VERTICAL).apply {
+            }, FrameLayout.LayoutParams(dp(44), dp(38),
+                Gravity.START or Gravity.CENTER_VERTICAL).apply {
                 leftMargin = dp(22)
+                topMargin = dp(64)
             })
         }
         val lead = match.lead
