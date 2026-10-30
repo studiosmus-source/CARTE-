@@ -35,7 +35,7 @@ class ScopaGame(random: Random = Random.Default) {
 
     /** Returns false for illegal turn, missing card, or invalid capture selection. */
     fun play(player: Int, card: Card, capture: List<Card>? = null): Boolean {
-        if (finished || player != turn || card !in hands[player]) return false
+        if (finished || player !in 0..1 || player != turn || card !in hands[player]) return false
         val choices = options(card)
         val selected = when {
             choices.isEmpty() && capture == null -> null
