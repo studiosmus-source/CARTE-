@@ -41,6 +41,7 @@ class SalonAudio(
         pending.clear()
         players.toList().forEach { it.release() }
         players.clear()
+        playerNames.clear()
     }
 
     private fun schedule(event: AmbienceScheduler.Event) {
@@ -81,8 +82,10 @@ class SalonAudio(
         player.isLooping = loop
         player.setVolume(gain, gain)
         players.add(player)
+        playerNames[player] = name
         player.setOnCompletionListener {
             players.remove(it)
+            playerNames.remove(it)
             it.release()
         }
         player.start()
