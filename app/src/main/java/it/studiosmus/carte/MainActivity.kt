@@ -7,6 +7,8 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import it.studiosmus.carte.core.BriscolaGame
+import it.studiosmus.carte.core.Card
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -17,6 +19,7 @@ import android.widget.TextView
  * Uses Android platform widgets to keep the prototype dependency-free.
  */
 class MainActivity : Activity() {
+    private var game: BriscolaGame? = null
     private val ivory = Color.rgb(247, 233, 203)
     private val gold = Color.rgb(218, 174, 94)
     private val forest = Color.rgb(13, 54, 45)
@@ -88,7 +91,7 @@ class MainActivity : Activity() {
             background = panel(Color.rgb(20, 65, 54))
             isClickable = true
             isFocusable = true
-            setOnClickListener { showComingSoon(title) }
+            setOnClickListener { if (title == "BRISCOLA") startBriscola() else showComingSoon(title) }
         }
         box.addView(label(title, 25f, ivory, true))
         box.addView(label(subtitle, 13f, gold))
@@ -104,4 +107,83 @@ class MainActivity : Activity() {
             .setPositiveButton("Torna al menu", null)
             .show()
     }
+    private fun startBriscola() {
+        game = BriscolaGame()
+        advanceComputer()
+        renderBriscola()
+    }
+
+    private fun advanceComputer() {
+        val match = game ?: return
+        while (!match.finished && match.turn == 1) {
+            match.play(1, match.aiCard())
+        }
+    }
+
+    private fun cardName(card: Card): String =
+        "${card.rank.number} ${card.suit.name.lowercase().replaceFirstChar { it.uppercase() }}"
+
+    private fun renderBriscola() {
+        val match = game ?: return
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(16), dp(28), dp(16), dp(24))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22))
+            )
+        }
+        val scroll = ScrollView(this)
+        scroll.addView(root)
+        val back = label("‹ MENU", 15f, gold, true).apply {
+            setPadding(dp(8), dp(12), dp(8), dp(12))
+            setOnClickListener { game = null; showHome() }
+        }
+        root.addView(back)
+        root.addView(label("BRISCOLA", 34f, ivory, true))
+        root.addView(label("TU ${match.points[0]}  —  ${match.points[1]} COMPUTER", 20f, gold, true))
+        root.addView(View(this), LinearLayout.LayoutParams(1, dp(22)))
+        root.addView(label("AVVERSARIO", 13f, gold))
+        root.addView(label("🂠  🂠  🂠".take(match.hands[1].size * 3), 34f, ivory))
+        root.addView(View(this), LinearLayout.LayoutParams(1, dp(20)))
+        root.addView(label("BRISCOLA: ${match.trump.name}", 17f, ivory, true))
+        root.addView(label("Mazzo: ${match.remainingCards} carte", 14f, gold))
+        val lead = match.lead
+        val tableText = if (lead == null) "TAVOLO LIBERO" else
+            "${if (lead.first == 0) "Hai giocato" else "Il computer ha giocato"}\n${cardName(lead.second)}"
+        val table = label(tableText, 21f, ivory, true).apply {
+            background = panel(Color.rgb(23, 83, 64), 22)
+            setPadding(dp(12), dp(24), dp(12), dp(24))
+        }
+        root.addView(table, LinearLayout.LayoutParams(-1, dp(125)))
+        root.addView(label(match.lastTrick, 15f, gold))
+        root.addView(View(this), LinearLayout.LayoutParams(1, dp(16)))
+        if (match.finished) {
+            root.addView(label(match.result(), 27f, gold, true))
+            root.addView(label("Punteggio finale: ${match.points[0]} - ${match.points[1]}", 18f, ivory))
+            val again = Button(this).apply { text = "NUOVA PARTITA"; setOnClickListener { startBriscola() } }
+            root.addView(again)
+        } else {
+            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 14f, gold, true))
+            val hand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            match.hands[0].forEach { card ->
+                val button = Button(this).apply {
+                    text = cardName(card)
+                    isEnabled = match.turn == 0
+                    setTextColor(forest)
+                    setOnClickListener {
+                        if (match.play(0, card)) {
+                            advanceComputer()
+                            renderBriscola()
+                        }
+                    }
+                }
+                hand.addView(button, LinearLayout.LayoutParams(-1, dp(58)))
+            }
+            root.addView(hand)
+        }
+        setContentView(scroll)
+    }
+
 }
