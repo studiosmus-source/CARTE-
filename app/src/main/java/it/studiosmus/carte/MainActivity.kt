@@ -13,6 +13,7 @@ import it.studiosmus.carte.core.ScopaGame
 import it.studiosmus.carte.core.BriscolaGame
 import it.studiosmus.carte.core.Card
 import android.widget.SeekBar
+import android.widget.HorizontalScrollView
 import it.studiosmus.carte.audio.AmbienceSettings
 import android.widget.Button
 import android.widget.LinearLayout
@@ -108,6 +109,52 @@ class MainActivity : Activity() {
             if (bold) setTypeface(Typeface.SERIF, Typeface.BOLD)
             else typeface = Typeface.SERIF
         }
+
+    // Reusable card-shaped view; keeps all gameplay wired to the existing engines.
+    private fun cardTile(card: Card, enabled: Boolean = false, action: (() -> Unit)? = null): TextView {
+        val suit = when (card.suit.name) {
+            "DENARI" -> "●"
+            "COPPE" -> "♜"
+            "SPADE" -> "⚔"
+            else -> "♣"
+        }
+        val face = when (card.rank.number) {
+            8 -> "FANTE"
+            9 -> "CAVALLO"
+            10 -> "RE"
+            else -> card.rank.number.toString()
+        }
+        return label("$face\\n$suit\\n${card.suit.name}", 14f,
+            if (card.suit.name == "DENARI" || card.suit.name == "COPPE") Color.rgb(137, 40, 30) else forest,
+            true).apply {
+            background = panel(Color.rgb(255, 247, 225), 9, gold)
+            setPadding(dp(5), dp(6), dp(5), dp(6))
+            isEnabled = enabled || action == null
+            if (action != null) {
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { action() }
+            }
+        }
+    }
+
+    private fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(8), dp(4), dp(8))
+        }
+        cards.forEach { card ->
+            val tile = cardTile(card, action != null) { action?.invoke(card) }
+            val params = LinearLayout.LayoutParams(dp(92), dp(126))
+            params.setMargins(dp(4), 0, dp(4), 0)
+            row.addView(tile, params)
+        }
+        return HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(row)
+        }
+    }
 
     private fun showHome() {
         val root = LinearLayout(this).apply {
@@ -293,10 +340,8 @@ class MainActivity : Activity() {
         root.addView(label("TAVOLO", 19f, ivory, true))
         val tableText = if (match.table.isEmpty()) "Tavolo vuoto"
             else match.table.joinToString("\n") { cardName(it) }
-        root.addView(label(tableText, 21f, ivory, true).apply {
-            background = panel(Color.rgb(23, 83, 64))
-            setPadding(dp(12), dp(20), dp(12), dp(20))
-        }, LinearLayout.LayoutParams(-1, -2))
+        if (match.table.isEmpty()) root.addView(label(tableText, 18f, ivory))
+        else root.addView(cardRow(match.table))
         root.addView(label(match.lastMove, 15f, gold))
         if (match.finished) {
             val score = match.score()
@@ -313,13 +358,7 @@ class MainActivity : Activity() {
             })
         } else {
             root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 15f, gold, true))
-            match.hands[0].forEach { card ->
-                root.addView(Button(this).apply {
-                    text = cardName(card)
-                    isEnabled = match.turn == 0
-                    setOnClickListener { playScopaCard(card) }
-                }, LinearLayout.LayoutParams(-1, dp(60)))
-            }
+            root.addView(cardRow(match.hands[0]) { card -> if (match.turn == 0) playScopaCard(card) })
         }
         setContentView(scroll)
     }
@@ -362,7 +401,7 @@ class MainActivity : Activity() {
         root.addView(label("TU ${match.points[0]}  —  ${match.points[1]} COMPUTER", 20f, gold, true))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(22)))
         root.addView(label("AVVERSARIO", 13f, gold))
-        root.addView(label("🂠  🂠  🂠".take(match.hands[1].size * 3), 34f, ivory))
+        root.addView(label("▣  ".repeat(match.hands[1].size), 34f, gold))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(20)))
         root.addView(label("BRISCOLA: ${match.trump.name}", 17f, ivory, true))
         root.addView(label("Mazzo: ${match.remainingCards} carte", 14f, gold))
@@ -373,7 +412,8 @@ class MainActivity : Activity() {
             background = panel(Color.rgb(23, 83, 64), 22)
             setPadding(dp(12), dp(24), dp(12), dp(24))
         }
-        root.addView(table, LinearLayout.LayoutParams(-1, dp(125)))
+        root.addView(table, LinearLayout.LayoutParams(-1, dp(85)))
+        if (lead != null) root.addView(cardRow(listOf(lead.second)))
         root.addView(label(match.lastTrick, 15f, gold))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(16)))
         if (match.finished) {
@@ -383,22 +423,12 @@ class MainActivity : Activity() {
             root.addView(again)
         } else {
             root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 14f, gold, true))
-            val hand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            match.hands[0].forEach { card ->
-                val button = Button(this).apply {
-                    text = cardName(card)
-                    isEnabled = match.turn == 0
-                    setTextColor(forest)
-                    setOnClickListener {
-                        if (match.play(0, card)) {
-                            advanceComputer()
-                            renderBriscola()
-                        }
-                    }
+            root.addView(cardRow(match.hands[0]) { card ->
+                if (match.turn == 0 && match.play(0, card)) {
+                    advanceComputer()
+                    renderBriscola()
                 }
-                hand.addView(button, LinearLayout.LayoutParams(-1, dp(58)))
-            }
-            root.addView(hand)
+            })
         }
         setContentView(scroll)
     }
