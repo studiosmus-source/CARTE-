@@ -21,8 +21,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 
 /**
- * Initial visual shell. Gameplay screens will connect to the pure Kotlin engines.
- * Uses Android platform widgets to keep the prototype dependency-free.
+ * Offline Scopa and Briscola UI connected to pure Kotlin game engines.
+ * Uses Android platform widgets without additional UI dependencies.
  */
 class MainActivity : Activity() {
     private var game: BriscolaGame? = null
@@ -252,7 +252,7 @@ class MainActivity : Activity() {
             setOnClickListener { showAudioSettings() }
         }, LinearLayout.LayoutParams(-1, dp(66)))
         root.addView(label("SOLO OFFLINE  •  NESSUN ACCOUNT", 11f, gold))
-        root.addView(label("Versione iniziale · Partite in preparazione", 12f, ivory))
+        root.addView(label("Scopa e Briscola · Gioca offline", 12f, ivory))
         setContentView(scroll)
     }
 
@@ -262,7 +262,7 @@ class MainActivity : Activity() {
             setPadding(dp(22), dp(28), dp(22), dp(28))
             background = panel(forest)
         }
-        val scroll = ScrollView(this)
+        val scroll = ScrollView(this).apply { isFillViewport = true }
         scroll.addView(root)
         root.addView(label("‹ TORNA AL SALOTTO", 17f, gold, true).apply {
             setPadding(dp(10), dp(14), dp(10), dp(14))
@@ -391,7 +391,7 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(28), dp(16), dp(24))
             background = panel(forest)
         }
-        val scroll = ScrollView(this)
+        val scroll = ScrollView(this).apply { isFillViewport = true }
         scroll.addView(root)
         root.addView(label("‹ MENU", 15f, gold, true).apply {
             setPadding(dp(8), dp(12), dp(8), dp(12))
@@ -454,7 +454,7 @@ class MainActivity : Activity() {
                 intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22))
             )
         }
-        val scroll = ScrollView(this)
+        val scroll = ScrollView(this).apply { isFillViewport = true }
         scroll.addView(root)
         val back = label("‹ MENU", 15f, gold, true).apply {
             setPadding(dp(8), dp(12), dp(8), dp(12))
