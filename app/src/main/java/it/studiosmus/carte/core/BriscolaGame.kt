@@ -34,7 +34,7 @@ class BriscolaGame(random: Random = Random.Default) {
     private var trumpAvailable = true
 
     fun play(player: Int, card: Card): Boolean {
-        if (finished || turn != player || !hands[player].remove(card)) return false
+        if (finished || player !in 0..1 || turn != player || !hands[player].remove(card)) return false
         val first = lead
         if (first == null) {
             lead = player to card
