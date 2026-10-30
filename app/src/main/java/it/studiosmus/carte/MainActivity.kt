@@ -8,6 +8,7 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import it.studiosmus.carte.audio.Soundscape
+import it.studiosmus.carte.audio.SalonAudio
 import it.studiosmus.carte.core.BriscolaGame
 import it.studiosmus.carte.core.Card
 import android.widget.Button
@@ -22,6 +23,7 @@ import android.widget.TextView
 class MainActivity : Activity() {
     private var game: BriscolaGame? = null
     private val soundscape = Soundscape()
+    private val salonAudio by lazy { SalonAudio(this) }
     private var fireplaceEnabled = false
     private val ivory = Color.rgb(247, 233, 203)
     private val gold = Color.rgb(218, 174, 94)
@@ -36,16 +38,21 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         soundscape.stop()
+        salonAudio.stop()
         super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
-        if (fireplaceEnabled) soundscape.start()
+        if (fireplaceEnabled) {
+            soundscape.start()
+            salonAudio.start()
+        }
     }
 
     override fun onDestroy() {
         soundscape.release()
+        salonAudio.stop()
         super.onDestroy()
     }
 
@@ -101,7 +108,13 @@ class MainActivity : Activity() {
             background = panel(Color.rgb(20, 65, 54))
             setOnClickListener {
                 fireplaceEnabled = !fireplaceEnabled
-                if (fireplaceEnabled) soundscape.start() else soundscape.stop()
+                if (fireplaceEnabled) {
+                    soundscape.start()
+                    salonAudio.start()
+                } else {
+                    soundscape.stop()
+                    salonAudio.stop()
+                }
                 text = if (fireplaceEnabled) "CAMINO ACCESO - TOCCA PER SPEGNERE"
                        else "CAMINO: ACCENDI"
             }
