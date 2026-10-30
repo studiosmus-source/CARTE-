@@ -198,7 +198,7 @@ class MainActivity : Activity() {
                 })
             })
         }
-        root.addView(Button(this).apply { text = "PROVA IL CAMINO"; setOnClickListener { fireplaceEnabled = !fireplaceEnabled; saveAmbience(); if (fireplaceEnabled) soundscape.start() else soundscape.stop(); text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO" } })
+        root.addView(Button(this).apply { text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"; setOnClickListener { fireplaceEnabled = !fireplaceEnabled; saveAmbience(); if (fireplaceEnabled) soundscape.start() else soundscape.stop(); text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO" } })
         slider("Camino", ambience.fireplace) { ambience = ambience.copy(fireplace = it) }
         slider("Jazz", ambience.jazz) { ambience = ambience.copy(jazz = it) }
         slider("Conversazioni", ambience.conversations) { ambience = ambience.copy(conversations = it) }
