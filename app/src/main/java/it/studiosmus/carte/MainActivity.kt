@@ -252,7 +252,27 @@ class MainActivity : Activity() {
         slider("Bicchieri", ambience.glassware) { ambience = ambience.copy(glassware = it) }
         slider("Porte", ambience.doors) { ambience = ambience.copy(doors = it) }
         slider("Carte", ambience.cards) { ambience = ambience.copy(cards = it) }
-        root.addView(label("Il camino è sintetizzato offline. Jazz, voci e altri effetti saranno udibili quando saranno inclusi i file audio. Il volume delle carte è predisposto per i futuri effetti.", 13f, gold))
+        val recordings = listOf(
+            "Jazz" to "salon_jazz",
+            "Conversazioni" to "salon_conversation",
+            "Bicchieri" to "salon_glassware",
+            "Porte" to "salon_door"
+        )
+        val available = recordings.filter { (_, resource) ->
+            resources.getIdentifier(resource, "raw", packageName) != 0
+        }
+        val audioStatus = if (available.size == recordings.size) {
+            "Registrazioni ambientali disponibili: 4/4"
+        } else {
+            "Registrazioni disponibili: ${available.size}/4\\n" +
+                recordings.filterNot { it in available }
+                    .joinToString("\\n") { (title, _) -> "• $title: audio non ancora incluso" }
+        }
+        root.addView(label("DIAGNOSTICA AUDIO", 18f, gold, true))
+        root.addView(label(audioStatus, 14f, ivory).apply {
+            setPadding(dp(10), dp(12), dp(10), dp(18))
+        })
+        root.addView(label("Camino: generato offline. Effetti delle carte: non ancora inclusi. I cursori degli audio mancanti salvano le preferenze, ma non producono suono.", 13f, gold))
         setContentView(scroll)
     }
 
