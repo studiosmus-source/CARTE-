@@ -17,6 +17,7 @@ import it.studiosmus.carte.core.Card
 import android.widget.SeekBar
 import android.widget.HorizontalScrollView
 import it.studiosmus.carte.audio.AmbienceSettings
+import android.widget.FrameLayout
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -609,20 +610,16 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(12), dp(12), dp(12), dp(16))
-            background = GradientDrawable(
-                GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22))
-            )
+            setPadding(dp(10), dp(8), dp(10), dp(10))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(7, 30, 26), Color.rgb(20, 94, 68), forest))
         }
-        val scroll = ScrollView(this).apply { isFillViewport = true }
-        scroll.addView(root)
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        header.addView(label("‹ MENU", 14f, gold, true).apply {
-            setPadding(dp(8), dp(10), dp(8), dp(10))
+        header.addView(label("‹", 30f, gold, true).apply {
+            setPadding(dp(12), dp(4), dp(12), dp(4))
             setOnClickListener {
                 gameHandler.removeCallbacksAndMessages(null)
                 computerPending = false
@@ -630,35 +627,63 @@ class MainActivity : Activity() {
                 showHome()
             }
         })
-        header.addView(label("BRISCOLA", 25f, ivory, true),
+        header.addView(label("BRISCOLA", 19f, ivory, true),
             LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(label("⚙", 23f, gold).apply {
+            setPadding(dp(12), dp(4), dp(12), dp(4))
+            setOnClickListener { showAudioSettings() }
+        })
         root.addView(header, LinearLayout.LayoutParams(-1, -2))
-        root.addView(label("TU ${match.points[0]}  —  ${match.points[1]} COMPUTER", 16f, gold, true))
-        root.addView(View(this), LinearLayout.LayoutParams(1, dp(8)))
-        root.addView(label("AVVERSARIO", 12f, gold))
         root.addView(cardBackRow(match.hands[1].size))
-        root.addView(View(this), LinearLayout.LayoutParams(1, dp(8)))
-        root.addView(label("BRISCOLA: ${match.trump.name}", 15f, ivory, true))
-        root.addView(label("Mazzo: ${match.remainingCards} carte", 12f, gold))
-        val lead = match.lead
-        // Keep the active trick visible: no fixed-height message panel that clips text.
-        val tableText = if (lead == null) "Tavolo libero" else
-            if (lead.first == 0) "Hai giocato" else "Il computer ha giocato"
-        val table = label(tableText, 16f, ivory, true).apply {
-            background = panel(Color.rgb(18, 83, 62), 22, Color.rgb(121, 139, 82))
-            setPadding(dp(12), dp(14), dp(12), dp(14))
+        root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
+
+        val table = FrameLayout(this).apply {
+            background = panel(Color.rgb(23, 103, 76), 24, Color.rgb(73, 125, 89))
         }
-        root.addView(table, LinearLayout.LayoutParams(-1, -2))
-        if (lead != null) root.addView(cardRow(listOf(lead.second)))
-        root.addView(label(match.lastTrick, 15f, gold))
-        root.addView(View(this), LinearLayout.LayoutParams(1, dp(16)))
+        root.addView(table, LinearLayout.LayoutParams(-1, 0, 1f).apply {
+            topMargin = dp(8)
+            bottomMargin = dp(8)
+        })
+        // The exposed trump lies sideways underneath the covered stock.
+        if (match.remainingCards > 0) {
+            val trump = cardTile(match.trumpCard).apply {
+                rotation = 90f
+                pivotX = dp(39).toFloat()
+                pivotY = dp(64).toFloat()
+            }
+            table.addView(trump, FrameLayout.LayoutParams(dp(78), dp(129), Gravity.START or Gravity.CENTER_VERTICAL).apply {
+                leftMargin = dp(38)
+            })
+            val back = cardBackRow(1)
+            table.addView(back, FrameLayout.LayoutParams(dp(90), dp(120), Gravity.START or Gravity.CENTER_VERTICAL))
+            table.addView(label("${match.remainingCards}", 17f, ivory, true).apply {
+                background = panel(Color.rgb(17, 63, 52), 18)
+            }, FrameLayout.LayoutParams(dp(44), dp(38), Gravity.START or Gravity.CENTER_VERTICAL).apply {
+                leftMargin = dp(22)
+            })
+        }
+        val lead = match.lead
+        if (lead != null) {
+            table.addView(cardTile(lead.second),
+                FrameLayout.LayoutParams(dp(86), dp(141), Gravity.CENTER).apply {
+                    leftMargin = dp(112)
+                })
+        }
+        val tableMessage = when {
+            lead?.first == 1 -> "IL COMPUTER HA GIOCATO"
+            lead?.first == 0 -> "HAI GIOCATO"
+            else -> match.lastTrick.ifEmpty { "TOCCA A TE" }
+        }
+        table.addView(label(tableMessage, 12f, ivory, true),
+            FrameLayout.LayoutParams(-1, dp(38), Gravity.BOTTOM))
+        root.addView(label("TU  ·  ${match.points[0]} PUNTI", 14f, gold, true))
         if (match.finished) {
-            root.addView(label(match.result(), 27f, gold, true))
-            root.addView(label("Punteggio finale: ${match.points[0]} - ${match.points[1]}", 18f, ivory))
-            val again = Button(this).apply { text = "NUOVA PARTITA"; setOnClickListener { startBriscola() } }
-            root.addView(again)
+            root.addView(label(match.result(), 24f, ivory, true))
+            root.addView(Button(this).apply {
+                text = "NUOVA PARTITA"
+                setOnClickListener { startBriscola() }
+            })
         } else {
-            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
             root.addView(cardRow(match.hands[0]) { card ->
                 if (match.turn == 0 && match.play(0, card)) {
                     renderBriscola()
@@ -666,7 +691,7 @@ class MainActivity : Activity() {
                 }
             })
         }
-        setContentView(scroll)
+        setContentView(root)
     }
 
 }
