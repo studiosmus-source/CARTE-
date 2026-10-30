@@ -30,6 +30,8 @@ import android.widget.TextView
 class MainActivity : Activity() {
     private val gameHandler = Handler(Looper.getMainLooper())
     private var computerPending = false
+    private var trickPreview: Pair<Card, Card>? = null
+    private var trickResolving = false
     private var game: BriscolaGame? = null
     private var scopa: ScopaGame? = null
     private val soundscape = Soundscape()
@@ -582,23 +584,46 @@ class MainActivity : Activity() {
     private fun startBriscola() {
         gameHandler.removeCallbacksAndMessages(null)
         computerPending = false
+        trickPreview = null
+        trickResolving = false
         game = BriscolaGame()
         advanceComputer()
         renderBriscola()
     }
 
+    private fun playBriscola(player: Int, card: Card) {
+        val match = game ?: return
+        if (trickResolving || match.finished || match.turn != player) return
+        val first = match.lead
+        if (first == null) {
+            if (match.play(player, card)) {
+                renderBriscola()
+                if (match.turn == 1) advanceComputer()
+            }
+            return
+        }
+        // Keep both played cards on the felt while the trick is being awarded.
+        trickPreview = first.second to card
+        trickResolving = true
+        renderBriscola()
+        gameHandler.postDelayed({
+            if (game !== match) return@postDelayed
+            match.play(player, card)
+            trickPreview = null
+            trickResolving = false
+            renderBriscola()
+            if (match.turn == 1) advanceComputer()
+        }, 1000L)
+    }
+
     private fun advanceComputer() {
         val match = game ?: return
-        if (match.finished || match.turn != 1 || computerPending) return
+        if (match.finished || match.turn != 1 || computerPending || trickResolving) return
         computerPending = true
         gameHandler.postDelayed({
             computerPending = false
             if (game !== match || match.finished || match.turn != 1) return@postDelayed
-            if (match.play(1, match.aiCard())) {
-                renderBriscola()
-                // Show the computer's lead card before the human responds.
-                if (match.turn == 1) advanceComputer()
-            }
+            playBriscola(1, match.aiCard())
         }, 850L)
     }
 
@@ -623,6 +648,8 @@ class MainActivity : Activity() {
             setOnClickListener {
                 gameHandler.removeCallbacksAndMessages(null)
                 computerPending = false
+                trickPreview = null
+                trickResolving = false
                 game = null
                 showHome()
             }
@@ -669,7 +696,15 @@ class MainActivity : Activity() {
                     leftMargin = dp(112)
                 })
         }
+        trickPreview?.let { (_, second) ->
+            table.addView(cardTile(second),
+                FrameLayout.LayoutParams(dp(86), dp(141), Gravity.CENTER).apply {
+                    leftMargin = dp(170)
+                    topMargin = dp(32)
+                })
+        }
         val tableMessage = when {
+            trickResolving -> "PRESA IN CORSO"
             lead?.first == 1 -> "IL COMPUTER HA GIOCATO"
             lead?.first == 0 -> "HAI GIOCATO"
             else -> match.lastTrick.ifEmpty { "TOCCA A TE" }
@@ -685,10 +720,7 @@ class MainActivity : Activity() {
             })
         } else {
             root.addView(cardRow(match.hands[0]) { card ->
-                if (match.turn == 0 && match.play(0, card)) {
-                    renderBriscola()
-                    advanceComputer()
-                }
+                if (match.turn == 0 && !trickResolving) playBriscola(0, card)
             })
         }
         setContentView(root)
