@@ -182,10 +182,27 @@ class MainActivity : Activity() {
                 paint.textSize = size
                 canvas.drawText(value, x, y, paint)
             }
+            private val artwork: android.graphics.Bitmap? by lazy {
+                try {
+                    assets.open("cards/${card.id}.jpg").use { stream ->
+                        android.graphics.BitmapFactory.decodeStream(stream)
+                    }
+                } catch (_: java.io.IOException) {
+                    null
+                }
+            }
             override fun onDraw(canvas: android.graphics.Canvas) {
                 super.onDraw(canvas)
                 val w = width.toFloat()
                 val h = height.toFloat()
+                val bitmap = artwork
+                if (bitmap != null) {
+                    paint.style = android.graphics.Paint.Style.FILL
+                    paint.isFilterBitmap = true
+                    canvas.drawBitmap(bitmap, null,
+                        android.graphics.RectF(0f, 0f, w, h), paint)
+                    return
+                }
                 val unit = w / 92f
                 paint.style = android.graphics.Paint.Style.FILL
                 paint.color = Color.rgb(251, 240, 212)
