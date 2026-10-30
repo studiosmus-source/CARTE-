@@ -277,6 +277,8 @@ class MainActivity : Activity() {
         }
         return HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
+            // A short hand fits on a phone without forcing the player to scroll.
+            fillViewport = true
             addView(row)
         }
     }
