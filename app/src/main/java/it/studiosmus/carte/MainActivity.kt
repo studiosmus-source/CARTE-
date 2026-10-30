@@ -72,6 +72,24 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
+    private fun applyAmbience() {
+        soundscape.setVolume(Soundscape.Channel.FIREPLACE, ambience.fireplace)
+        salonAudio.configure(ambience)
+    }
+
+    private fun saveAmbience() {
+        getSharedPreferences("ambience", MODE_PRIVATE).edit()
+            .putBoolean("enabled", fireplaceEnabled)
+            .putFloat("fireplace", ambience.fireplace)
+            .putFloat("jazz", ambience.jazz)
+            .putFloat("conversations", ambience.conversations)
+            .putFloat("glassware", ambience.glassware)
+            .putFloat("doors", ambience.doors)
+            .putFloat("cards", ambience.cards)
+            .apply()
+        applyAmbience()
+    }
+
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun panel(color: Int, radius: Int = 22, stroke: Int = gold): GradientDrawable =
