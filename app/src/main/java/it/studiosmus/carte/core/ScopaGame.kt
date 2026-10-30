@@ -92,13 +92,22 @@ class ScopaGame(random: Random = Random.Default) {
         val result = scope.copyOf()
         val cards = captured.map { it.size }
         val coins = captured.map { pile -> pile.count { it.suit == Suit.DENARI } }
-        val sevens = captured.map { pile -> pile.count { it.rank == Rank.SETTE } }
+        val primieraValues = mapOf(7 to 21, 6 to 18, 1 to 16, 5 to 15, 4 to 14, 3 to 13, 2 to 12, 8 to 10, 9 to 10, 10 to 10)
+        val primiera = captured.map { pile ->
+            if (Suit.entries.any { suit -> pile.none { it.suit == suit } }) null
+            else Suit.entries.sumOf { suit ->
+                pile.filter { it.suit == suit }.maxOf { primieraValues.getValue(it.rank.number) }
+            }
+        }
         fun award(a: Int, b: Int) {
             if (a > b) result[0]++ else if (b > a) result[1]++
         }
         award(cards[0], cards[1])
         award(coins[0], coins[1])
-        award(sevens[0], sevens[1]) // Temporary simplified primiera, to be replaced.
+        if (primiera[0] != null && primiera[1] != null) {
+            award(primiera[0]!!, primiera[1]!!)
+        } else if (primiera[0] != null) result[0]++
+        else if (primiera[1] != null) result[1]++
         val setteBello = Card(Suit.DENARI, Rank.SETTE)
         result[if (setteBello in captured[0]) 0 else 1]++
         return result
