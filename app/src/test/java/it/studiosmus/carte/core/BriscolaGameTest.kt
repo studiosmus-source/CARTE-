@@ -36,6 +36,8 @@ class BriscolaGameTest {
 
     @Test fun cannotPlayOutsideTurnOrUseCardNotInHand() {
         val game = BriscolaGame(Random(4))
+        assertFalse(game.play(-1, game.hands[0].first()))
+        assertFalse(game.play(2, game.hands[0].first()))
         assertFalse(game.play(1, game.hands[1].first()))
         assertFalse(game.play(0, game.hands[1].first()))
         assertEquals(0, game.tricksPlayed)
