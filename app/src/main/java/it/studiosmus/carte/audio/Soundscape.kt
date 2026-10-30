@@ -62,6 +62,7 @@ class Soundscape(private val random: Random = Random.Default) {
             var phase = 0.0
             var crackle = 0.0
             var warmth = 0.0
+            var crackleTone = 0.0
             // Short, quiet room reflections: subtle ambience rather than an audible echo.
             val reflections = DoubleArray(4096)
             var reflectionIndex = 0
@@ -72,13 +73,15 @@ class Soundscape(private val random: Random = Random.Default) {
                     low = low * 0.997 + noise * 0.003
                     warmth = warmth * 0.965 + low * 0.035
                     crackle *= 0.985
-                    if (random.nextDouble() < 0.000055) crackle += random.nextDouble(0.12, 0.35)
+                    if (random.nextDouble() < 0.000035) crackle += random.nextDouble(0.08, 0.22)
+                    crackleTone = crackleTone * 0.90 + (crackle * noise) * 0.10
                     phase += 2 * PI * 0.21 / sampleRate
                     val breath = 0.75 + 0.25 * sin(phase)
-                    val signal = (warmth * 5.5 * breath + low * 1.4 + noise * 0.0015 + crackle * noise * 0.22) * gain
+                    // Muffled, distant fireplace: no direct broadband hiss or sharp close-up pops.
+                    val signal = (warmth * 4.5 * breath + low * 1.0 + crackleTone * 0.10) * gain * 0.72
                     val reflected = reflections[reflectionIndex]
-                    val roomSignal = signal + reflected * 0.13
-                    reflections[reflectionIndex] = signal * 0.35 + reflected * 0.12
+                    val roomSignal = signal * 0.88 + reflected * 0.20
+                    reflections[reflectionIndex] = signal * 0.38 + reflected * 0.10
                     reflectionIndex = (reflectionIndex + 1) % reflections.size
                     samples[i] = (roomSignal.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).toInt().toShort()
                 }
