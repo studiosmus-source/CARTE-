@@ -145,7 +145,7 @@ class MainActivity : Activity() {
             setPadding(dp(4), dp(8), dp(4), dp(8))
         }
         cards.forEach { card ->
-            val tile = cardTile(card, action != null) { action?.invoke(card) }
+            val tile = if (action == null) cardTile(card) else cardTile(card, true) { action(card) }
             val params = LinearLayout.LayoutParams(dp(92), dp(126))
             params.setMargins(dp(4), 0, dp(4), 0)
             row.addView(tile, params)
