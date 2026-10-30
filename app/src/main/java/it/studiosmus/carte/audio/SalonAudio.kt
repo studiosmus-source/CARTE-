@@ -20,6 +20,7 @@ class SalonAudio(
     private val handler = Handler(Looper.getMainLooper())
     private val players = mutableSetOf<MediaPlayer>()
     private val pending = mutableListOf<Runnable>()
+    private val playerNames = mutableMapOf<MediaPlayer, String>()
     private var running = false
     private var settings = AmbienceSettings()
 
