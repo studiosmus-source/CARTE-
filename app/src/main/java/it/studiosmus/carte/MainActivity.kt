@@ -119,7 +119,7 @@ class MainActivity : Activity() {
                 intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22))
             )
         }
-        val scroll = ScrollView(this).apply { fillViewport = true }
+        val scroll = ScrollView(this).apply { isFillViewport = true }
         scroll.addView(root)
 
         root.addView(label("♠  ♥  ♦  ♣", 26f, gold))
