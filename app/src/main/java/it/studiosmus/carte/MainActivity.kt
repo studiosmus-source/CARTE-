@@ -23,6 +23,7 @@ import android.widget.TextView
  */
 class MainActivity : Activity() {
     private var game: BriscolaGame? = null
+    private var scopa: ScopaGame? = null
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
     private var fireplaceEnabled = false
@@ -134,7 +135,7 @@ class MainActivity : Activity() {
             background = panel(Color.rgb(20, 65, 54))
             isClickable = true
             isFocusable = true
-            setOnClickListener { if (title == "BRISCOLA") startBriscola() else showComingSoon(title) }
+            setOnClickListener { if (title == "BRISCOLA") startBriscola() else startScopa() }
         }
         box.addView(label(title, 25f, ivory, true))
         box.addView(label(subtitle, 13f, gold))
