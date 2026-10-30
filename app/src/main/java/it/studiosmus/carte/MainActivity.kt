@@ -38,6 +38,17 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = Color.rgb(8, 35, 30)
         window.navigationBarColor = Color.rgb(8, 35, 30)
+        val prefs = getSharedPreferences("ambience", MODE_PRIVATE)
+        fireplaceEnabled = prefs.getBoolean("enabled", false)
+        ambience = AmbienceSettings(
+            fireplace = prefs.getFloat("fireplace", 0.22f),
+            jazz = prefs.getFloat("jazz", 0.20f),
+            conversations = prefs.getFloat("conversations", 0.12f),
+            glassware = prefs.getFloat("glassware", 0.24f),
+            doors = prefs.getFloat("doors", 0.16f),
+            cards = prefs.getFloat("cards", 0.55f)
+        ).normalized()
+        applyAmbience()
         showHome()
     }
 
