@@ -200,6 +200,52 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun cardBackRow(count: Int): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(4), dp(8), dp(4), dp(8))
+        }
+        repeat(count) {
+            val back = object : View(this) {
+                private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+                override fun onDraw(canvas: android.graphics.Canvas) {
+                    val w = width.toFloat()
+                    val h = height.toFloat()
+                    paint.style = android.graphics.Paint.Style.FILL
+                    paint.color = Color.rgb(95, 31, 37)
+                    canvas.drawRoundRect(1f, 1f, w - 1f, h - 1f, dp(7).toFloat(), dp(7).toFloat(), paint)
+                    paint.style = android.graphics.Paint.Style.STROKE
+                    paint.strokeWidth = dp(2).toFloat()
+                    paint.color = gold
+                    canvas.drawRoundRect(dp(5).toFloat(), dp(5).toFloat(),
+                        w - dp(5), h - dp(5), dp(4).toFloat(), dp(4).toFloat(), paint)
+                    paint.strokeWidth = dp(1).toFloat()
+                    val step = dp(12).toFloat()
+                    var y = dp(15).toFloat()
+                    while (y < h - dp(10)) {
+                        var x = dp(14).toFloat()
+                        while (x < w - dp(10)) {
+                            canvas.drawCircle(x, y, dp(2).toFloat(), paint)
+                            x += step
+                        }
+                        y += step
+                    }
+                    paint.style = android.graphics.Paint.Style.FILL
+                    paint.color = ivory
+                    paint.textAlign = android.graphics.Paint.Align.CENTER
+                    paint.typeface = Typeface.SERIF
+                    paint.textSize = dp(20).toFloat()
+                    canvas.drawText("✦", w / 2f, h / 2f + dp(7), paint)
+                }
+            }.apply { contentDescription = "Carta coperta dell'avversario" }
+            val params = LinearLayout.LayoutParams(dp(72), dp(98))
+            params.setMargins(dp(4), 0, dp(4), 0)
+            row.addView(back, params)
+        }
+        return row
+    }
+
     private fun showHome() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -465,7 +511,7 @@ class MainActivity : Activity() {
         root.addView(label("TU ${match.points[0]}  —  ${match.points[1]} COMPUTER", 20f, gold, true))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(22)))
         root.addView(label("AVVERSARIO", 13f, gold))
-        root.addView(label("▣  ".repeat(match.hands[1].size), 34f, gold))
+        root.addView(cardBackRow(match.hands[1].size))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(20)))
         root.addView(label("BRISCOLA: ${match.trump.name}", 17f, ivory, true))
         root.addView(label("Mazzo: ${match.remainingCards} carte", 14f, gold))
