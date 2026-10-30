@@ -576,7 +576,7 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(16), dp(28), dp(16), dp(24))
+            setPadding(dp(12), dp(12), dp(12), dp(16))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
                 intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22))
@@ -589,21 +589,21 @@ class MainActivity : Activity() {
             setOnClickListener { game = null; showHome() }
         }
         root.addView(back)
-        root.addView(label("BRISCOLA", 34f, ivory, true))
-        root.addView(label("TU ${match.points[0]}  —  ${match.points[1]} COMPUTER", 20f, gold, true))
+        root.addView(label("BRISCOLA", 26f, ivory, true))
+        root.addView(label("TU ${match.points[0]}  —  ${match.points[1]} COMPUTER", 16f, gold, true))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(8)))
-        root.addView(label("AVVERSARIO", 13f, gold))
+        root.addView(label("AVVERSARIO", 12f, gold))
         root.addView(cardBackRow(match.hands[1].size))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(8)))
-        root.addView(label("BRISCOLA: ${match.trump.name}", 17f, ivory, true))
-        root.addView(label("Mazzo: ${match.remainingCards} carte", 14f, gold))
+        root.addView(label("BRISCOLA: ${match.trump.name}", 15f, ivory, true))
+        root.addView(label("Mazzo: ${match.remainingCards} carte", 12f, gold))
         val lead = match.lead
         // Keep the active trick visible: no fixed-height message panel that clips text.
         val tableText = if (lead == null) "Tavolo libero" else
             if (lead.first == 0) "Hai giocato" else "Il computer ha giocato"
         val table = label(tableText, 16f, ivory, true).apply {
-            background = panel(Color.rgb(23, 83, 64), 16)
-            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = panel(Color.rgb(18, 83, 62), 22, Color.rgb(121, 139, 82))
+            setPadding(dp(12), dp(14), dp(12), dp(14))
         }
         root.addView(table, LinearLayout.LayoutParams(-1, -2))
         if (lead != null) root.addView(cardRow(listOf(lead.second)))
@@ -615,7 +615,7 @@ class MainActivity : Activity() {
             val again = Button(this).apply { text = "NUOVA PARTITA"; setOnClickListener { startBriscola() } }
             root.addView(again)
         } else {
-            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 14f, gold, true))
+            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
             root.addView(cardRow(match.hands[0]) { card ->
                 if (match.turn == 0 && match.play(0, card)) {
                     advanceComputer()
