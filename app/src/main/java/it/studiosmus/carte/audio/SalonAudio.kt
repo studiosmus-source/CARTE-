@@ -236,12 +236,12 @@ class SalonAudio(
         try { player.start() } catch (_: IllegalStateException) { dispose(player) }
     }
 
-    /** Returns false only when no sampled foley asset exists: legacy fallback. */
-    fun playCard(event: Soundscape.CardEvent): Boolean {
+    /** Plays approved recorded foley only; absent sample stays silent. */
+    fun playCard(event: CardSoundEvent): Boolean {
         val name = when (event) {
-            Soundscape.CardEvent.DEAL -> "salon_card_deal"
-            Soundscape.CardEvent.PLAY -> "salon_card_play"
-            Soundscape.CardEvent.COLLECT -> "salon_card_collect"
+            CardSoundEvent.DEAL -> "salon_card_deal"
+            CardSoundEvent.PLAY -> "salon_card_play"
+            CardSoundEvent.COLLECT -> "salon_card_collect"
         }
         if (!hasRecording(name)) return false
         if (settings.cards > 0f) playOnce(name)
