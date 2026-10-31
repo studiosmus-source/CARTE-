@@ -37,12 +37,15 @@ SHA256 = {
     "voices": "0e45102d17749ee2af11f02b4d7878ceb3326ef799984d88e3010e5c64d86011",
 }
 # Source start, playback length, output rate, processing chain.
-# The card timings are provisional editable takes from the same genuine
-# recording, to be validated separately at a listening test.
+# The original 3.0 / 1.2 / 2.0 second cuts were too long. In particular,
+# the PLAY impact occurred ~1.1 seconds after playback began. These verified
+# offsets place the first audible transient around 70-100 ms after the card
+# moves, and end within a single visual transition. All three are genuine
+# segments of the SAME CC0 recording, never synthetic foley.
 CLIPS = {
-    "salon_card_deal": ("cards", 0.0, 3.0, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9"),
-    "salon_card_play": ("cards", 5.2, 1.2, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9"),
-    "salon_card_collect": ("cards", 12.0, 2.0, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9"),
+    "salon_card_deal": ("cards", 0.06, 0.48, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9,afade=t=out:st=0.40:d=0.08"),
+    "salon_card_play": ("cards", 6.22, 0.28, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9,afade=t=out:st=0.22:d=0.06"),
+    "salon_card_collect": ("cards", 12.06, 0.39, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9,afade=t=out:st=0.31:d=0.08"),
     "salon_fireplace": ("fire", 0.0, 70.0, "highpass=f=90,lowpass=f=2800,afftdn=nr=12:nf=-40,loudnorm=I=-24:TP=-5:LRA=15"),
     "salon_conversation": ("voices", 0.0, 19.0, "highpass=f=150,lowpass=f=4000,loudnorm=I=-22:TP=-4:LRA=12"),
     "salon_glassware": ("glass", 0.0, 1.26, "highpass=f=130,loudnorm=I=-19:TP=-4:LRA=10"),
