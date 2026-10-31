@@ -48,7 +48,7 @@ class SalonAudio(
     private var whisperTask: Runnable? = null
     // Card impact cues are preloaded, unlike the long-running room ambience.
     private var cardPool: SoundPool? = null
-    private val cardSamples = mutableMapOf<CardSoundEvent, Int>()
+    private val cardSamples = mutableMapOf<CardSoundEvent, List<Int>>()
     private val cardReady = mutableSetOf<Int>()
     private var activeCardStream = 0
     private val lastCardVariation = mutableMapOf<CardSoundEvent, Int>()
@@ -345,16 +345,18 @@ class SalonAudio(
             if (cardPool === completedPool && status == 0) cardReady.add(soundId)
         }
         for (event in CardSoundEvent.entries) {
-            val name = when (event) {
-                CardSoundEvent.DEAL -> "salon_card_deal"
-                CardSoundEvent.PLAY -> "salon_card_play"
-                CardSoundEvent.COLLECT -> "salon_card_collect"
+            val kind = when (event) {
+                CardSoundEvent.DEAL -> "deal"
+                CardSoundEvent.PLAY -> "play"
+                CardSoundEvent.COLLECT -> "collect"
             }
-            val resource = context.resources.getIdentifier(name, "raw", context.packageName)
-            if (resource != 0) {
-                val soundId = pool.load(context, resource, 1)
-                if (soundId != 0) cardSamples[event] = soundId
+            val samples = (1..3).mapNotNull { take ->
+                val name = "salon_card_${kind}_${take.toString().padStart(2, '0')}"
+                val resource = context.resources.getIdentifier(name, "raw", context.packageName)
+                if (resource == 0) null else pool.load(context, resource, 1)
+                    .takeIf { it != 0 }
             }
+            if (samples.isNotEmpty()) cardSamples[event] = samples
         }
     }
 
@@ -371,31 +373,23 @@ class SalonAudio(
     fun playCard(event: CardSoundEvent): Boolean {
         val pool = cardPool ?: return false
         if (!running || scene != Scene.SALON || settings.cards <= 0f) return false
-        val soundId = cardSamples[event] ?: return false
-        if (soundId !in cardReady) return false
+        val ready = cardSamples[event].orEmpty().filter { it in cardReady }
+        if (ready.isEmpty()) return false
         stopCardCue()
-        // Tiny rate, distance and stereo differences mimic individual real
-        // handling motions without changing the user-selected cards slider.
-        // The same variation cannot recur twice in a row for an action type.
-        val last = lastCardVariation[event] ?: -1
-        val choice = random.nextInt(2)
-        val variant = if (last in 0..2 && choice >= last) choice + 1 else choice
-        lastCardVariation[event] = variant
-        val rates = floatArrayOf(.982f, 1.0f, 1.018f)
-        val presence = floatArrayOf(.91f, 1.0f, .95f)
-        val pan = floatArrayOf(-.075f, 0f, .075f)
-        val volume = (settings.cards * roomPerspective * presence[variant])
-            .coerceIn(0f, 1f)
-        val left = volume * (1f - pan[variant].coerceAtLeast(0f))
-        val right = volume * (1f + pan[variant].coerceAtMost(0f))
-        val stream = pool.play(soundId, left, right, 1, 0, rates[variant])
+        // Three distinct recorded takes per action; keep their natural pitch.
+        val previous = lastCardVariation[event] ?: -1
+        val takeIndex = CardCuePicker.next(previous, ready.size, random)
+        lastCardVariation[event] = takeIndex
+        val soundId = ready[takeIndex]
+        val volume = (settings.cards * roomPerspective).coerceIn(0f, 1f)
+        val stream = pool.play(soundId, volume, volume, 1, 0, 1f)
         if (stream == 0) return false
         activeCardStream = stream
-        // Defensive caps also cover an accidentally bundled long audio file.
+        // Defensive caps prevent old multi-second recordings from recurring.
         val maxDuration = when (event) {
-            CardSoundEvent.DEAL -> 500L
-            CardSoundEvent.PLAY -> 310L
-            CardSoundEvent.COLLECT -> 420L
+            CardSoundEvent.DEAL -> 350L
+            CardSoundEvent.PLAY -> 300L
+            CardSoundEvent.COLLECT -> 430L
         }
         val stop = Runnable {
             if (cardPool === pool && activeCardStream == stream) {
