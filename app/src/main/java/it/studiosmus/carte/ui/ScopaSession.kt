@@ -2,11 +2,14 @@ package it.studiosmus.carte.ui
 
 import android.os.Handler
 import android.os.Looper
+import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.core.Card
 import it.studiosmus.carte.core.ScopaGame
 
 /** Serializes Scopa engine events; input is locked during every visual transition. */
-class ScopaSession(private val changed: () -> Unit) {
+class ScopaSession(private val changed: () -> Unit,
+    private val sound: (Soundscape.CardEvent) -> Unit = {}
+) {
     private val handler = Handler(Looper.getMainLooper())
     var game: ScopaGame? = null
         private set
@@ -29,6 +32,7 @@ class ScopaSession(private val changed: () -> Unit) {
         game = match
         busy = true
         dealing = true
+        sound(Soundscape.CardEvent.DEAL)
         changed()
         handler.postDelayed({
             if (game !== match) return@postDelayed
@@ -68,6 +72,7 @@ class ScopaSession(private val changed: () -> Unit) {
         if (game !== match || busy) return
         busy = true
         preview = card
+        sound(Soundscape.CardEvent.PLAY)
         changed()
         handler.postDelayed({
             if (game !== match) return@postDelayed
@@ -82,12 +87,14 @@ class ScopaSession(private val changed: () -> Unit) {
             collecting = capture != null
             collectedCards = if (capture != null) capture + card else emptyList()
             captureWinner = player
+            if (collecting) sound(Soundscape.CardEvent.COLLECT)
             changed()
             handler.postDelayed({
                 if (game !== match) return@postDelayed
                 collecting = false
                 collectedCards = emptyList()
                 dealing = !match.finished && match.hands[0].size > oldHandSize
+                if (dealing) sound(Soundscape.CardEvent.DEAL)
                 changed()
                 handler.postDelayed({
                     if (game !== match) return@postDelayed
