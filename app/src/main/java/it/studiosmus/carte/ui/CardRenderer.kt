@@ -40,42 +40,79 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
     private fun drawWornFinish(canvas: android.graphics.Canvas, w: Float, h: Float, card: Card) {
         val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
         p.style = android.graphics.Paint.Style.FILL
-        p.color = Color.argb(19, 166, 105, 45)
+        p.color = Color.argb(26, 166, 105, 45)
         canvas.drawRect(0f, 0f, w, h, p)
         val radius = w * .67f
         for ((cx, cy) in listOf(0f to 0f, w to 0f, 0f to h, w to h)) {
             p.shader = android.graphics.RadialGradient(cx, cy, radius,
-                intArrayOf(Color.argb(58, 112, 72, 42), Color.TRANSPARENT),
+                intArrayOf(Color.argb(78, 112, 72, 42), Color.TRANSPARENT),
                 null, android.graphics.Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, w, h, p)
         }
         p.shader = null
         val random = kotlin.random.Random(card.id.hashCode())
-        repeat(175) {
+        repeat(192) {
             val x = random.nextFloat() * w
             val y = random.nextFloat() * h
             val size = (if (it % 9 == 0) 1.75f else .6f) * w / 92f
-            p.color = if (it % 4 == 0) Color.argb(45, 101, 75, 51)
-                else Color.argb(31, 208, 162, 99)
+            p.color = if (it % 4 == 0) Color.argb(53, 101, 75, 51)
+                else Color.argb(38, 208, 162, 99)
             canvas.drawCircle(x, y, size * (.5f + random.nextFloat()), p)
         }
         p.style = android.graphics.Paint.Style.STROKE
-        repeat(30) {
+        repeat(38) {
             val x = random.nextFloat() * w
             val y = random.nextFloat() * h
-            val depth = w * (.009f + random.nextFloat() * .021f)
+            val depth = w * (.012f + random.nextFloat() * .024f)
             p.strokeWidth = w * .007f
-            p.color = if (it % 3 == 0) Color.argb(91, 136, 91, 53)
-                else Color.argb(67, 251, 235, 197)
+            p.color = if (it % 3 == 0) Color.argb(103, 136, 91, 53)
+                else Color.argb(76, 251, 235, 197)
             canvas.drawLine(x, if (it % 2 == 0) 0f else h,
                 x + w * .008f, if (it % 2 == 0) depth else h - depth, p)
             canvas.drawLine(if (it % 2 == 0) 0f else w, y,
                 if (it % 2 == 0) depth else w - depth, y + h * .004f, p)
         }
-        p.strokeWidth = w * .009f
-        p.color = Color.argb(75, 98, 62, 37)
+        // Very fine edge-to-corner scratches, away from the printed symbols.
+        repeat(10) {
+            val fromTop = it < 5
+            val x = if (it % 2 == 0) w * .035f else w * .965f
+            val y = h * (.035f + random.nextFloat() * .06f) *
+                (if (fromTop) 1f else -1f) + if (fromTop) 0f else h
+            p.strokeWidth = w * .0035f
+            p.color = Color.argb(44, 120, 85, 51)
+            canvas.drawLine(x, y, x + (if (x < w / 2f) 1f else -1f) * w * .04f,
+                y + (if (fromTop) 1f else -1f) * h * .012f, p)
+        }
+        p.strokeWidth = w * .010f
+        p.color = Color.argb(95, 98, 62, 37)
         canvas.drawRoundRect(w * .005f, h * .005f,
             w * .995f, h * .995f, w * .045f, w * .045f, p)
+    }
+
+    /** Aging is also visible on the reverse: corners catch handling marks. */
+    private fun drawWornBack(canvas: android.graphics.Canvas, w: Float, h: Float, index: Int) {
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        val random = kotlin.random.Random(53_221 + index * 719)
+        p.style = android.graphics.Paint.Style.FILL
+        for ((cx, cy) in listOf(0f to 0f, w to 0f, 0f to h, w to h)) {
+            p.shader = android.graphics.RadialGradient(cx, cy, w * .36f,
+                intArrayOf(Color.argb(50, 32, 15, 13), Color.TRANSPARENT),
+                null, android.graphics.Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, w, h, p)
+        }
+        p.shader = null
+        repeat(52) {
+            val x = random.nextFloat() * w
+            val y = random.nextFloat() * h
+            p.color = if (it % 3 == 0) Color.argb(61, 226, 177, 115)
+                else Color.argb(48, 37, 12, 12)
+            canvas.drawCircle(x, y, w * (.0013f + random.nextFloat() * .003f), p)
+        }
+        p.style = android.graphics.Paint.Style.STROKE
+        p.strokeWidth = w * .008f
+        p.color = Color.argb(94, 36, 16, 12)
+        canvas.drawRoundRect(w * .012f, h * .012f, w * .988f, h * .988f,
+            w * .047f, w * .047f, p)
     }
 
     // HD original artwork is preferred; the painted fallback is used only if an asset is missing.
@@ -207,7 +244,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
                 cornerRadius = dp(5).toFloat()
             }
             clipToOutline = true
-            elevation = dp(5).toFloat()
+            elevation = dp(7).toFloat()
             contentDescription = "${card.rank.number} ${card.suit.name}"
             isEnabled = enabled || action == null
             if (action != null) {
@@ -298,6 +335,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
                     paint.typeface = Typeface.SERIF
                     paint.textSize = dp(20).toFloat()
                     canvas.drawText("✦", w / 2f, h / 2f + dp(7), paint)
+                    drawWornBack(canvas, w, h, index)
                 }
             }.apply {
                 background = android.graphics.drawable.GradientDrawable().apply {
@@ -305,7 +343,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
                     cornerRadius = dp(6).toFloat()
                 }
                 clipToOutline = true
-                elevation = dp(4).toFloat()
+                elevation = dp(6).toFloat()
                 contentDescription = "Carta coperta dell'avversario"
             }
             val params = LinearLayout.LayoutParams(dp(72), dp(98))
