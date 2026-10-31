@@ -112,26 +112,28 @@ jobs:
                           )
           print("Verified: APK contains forty HD JPEG cards and any approved vintage images unchanged.")
           PY
-      - name: Verify supplied table textures INSIDE the APK
+      - name: Verify the actual supplied table photo inside APK
         run: |
           python3 - <<'PY'
           from hashlib import sha256
           from zipfile import ZipFile
           from pathlib import Path
-          files = {
-              "assets/textures/salon_wood.webp": "a6afaae14fb02f15edeb03d5277bbc86275dc0b4856358a1f47bcea99911f057",
-              "assets/textures/salon_felt.webp": "5385d06482cd5c0cafc745c15c81925ba74f3696302c8fae3c363afad43d4734",
-          }
+          name = "assets/textures/salon_table_reference.webp"
+          expected_sha = "7eaba10625328fc9d3c37b5743831b3766fd0f965fea3fabff45f6b396b8637e"
           source = Path("app/src/main/java/it/studiosmus/carte/ui/SalonTable.kt").read_text()
-          for name in ("salon_wood", "salon_felt"):
-              assert f'loadTexture("{name}")' in source and "drawBitmap" in source, name
-          with ZipFile("app/build/outputs/apk/debug/app-debug.apk") as archive:
-              for name, expected in files.items():
-                  packaged = archive.read(name)
-                  assert packaged.startswith(b"RIFF") and packaged[8:12] == b"WEBP", name
-                  assert sha256(packaged).hexdigest() == expected, f"Texture differs in APK: {name}"
-                  print(f"Verified user-supplied texture in APK: {name}, {len(packaged)} bytes")
+          assert "salon_table_reference.webp" in source and "canvas.drawBitmap(bitmap" in source
+          for obsolete in ("salon_wood.webp", "salon_felt.webp"):
+              assert obsolete not in source, f"Old material layer still in renderer: {obsolete}"
+          with ZipFile("app/build/outputs/apk/debug/app-debug.apk") as apk:
+              photo = apk.read(name)
+              assert len(photo) == 4730, "Supplied table photo size differs"
+              assert photo[:4] == b"RIFF" and photo[8:12] == b"WEBP", "Not WebP"
+              assert sha256(photo).hexdigest() == expected_sha, "Wrong or corrupt table photograph"
+              assert "assets/textures/salon_wood.webp" not in apk.namelist()
+              assert "assets/textures/salon_felt.webp" not in apk.namelist()
+          print("Verified: supplied photo exactly in APK; obsolete texture layers removed.")
           PY
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 app/src/main/assets/textures/salon_table_reference.webp | grep -qx "320,418"
       - name: Verify recorded audio inside the APK
         run: |
           python3 - <<'PY'
