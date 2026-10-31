@@ -193,7 +193,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             setPadding(dp(4), dp(8), dp(4), dp(8))
         }
         repeat(count) {
-            val back = object : View(this) {
+            val back = object : View(context) {
                 private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
                 override fun onDraw(canvas: android.graphics.Canvas) {
                     val w = width.toFloat()
