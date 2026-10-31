@@ -25,6 +25,9 @@ class ScopaSession(private val changed: () -> Unit,
         private set
     var captureWinner = 0
         private set
+    /** The latest newly earned Scopa, displayed briefly on the playing field. */
+    var scopaFlashPlayer: Int? = null
+        private set
 
     fun start() {
         stop()
@@ -52,6 +55,7 @@ class ScopaSession(private val changed: () -> Unit,
         collecting = false
         collectedCards = emptyList()
         captureWinner = 0
+        scopaFlashPlayer = null
     }
 
     fun options(card: Card): List<List<Card>> =
@@ -71,6 +75,7 @@ class ScopaSession(private val changed: () -> Unit,
     private fun queueMove(match: ScopaGame, player: Int, card: Card, capture: List<Card>?) {
         if (game !== match || busy) return
         busy = true
+        scopaFlashPlayer = null
         preview = card
         sound(CardSoundEvent.PLAY)
         changed()
@@ -79,6 +84,7 @@ class ScopaSession(private val changed: () -> Unit,
             val oldHandSize = match.hands[0].size
             val tableBefore = match.table.toList()
             val capturedBefore = match.captured[player].size
+            val scopeBefore = match.scope[player]
             if (!match.play(player, card, capture)) {
                 preview = null
                 busy = false
@@ -86,6 +92,15 @@ class ScopaSession(private val changed: () -> Unit,
                 return@postDelayed
             }
             preview = null
+            if (match.scope[player] > scopeBefore) {
+                scopaFlashPlayer = player
+                handler.postDelayed({
+                    if (game === match && scopaFlashPlayer == player) {
+                        scopaFlashPlayer = null
+                        changed()
+                    }
+                }, 1500L)
+            }
             val actuallyCaptured = match.captured[player].drop(capturedBefore)
             collecting = actuallyCaptured.isNotEmpty()
             collectedCards = actuallyCaptured.ifEmpty {
