@@ -34,7 +34,7 @@ class MainActivity : Activity() {
     private val computerPending get() = briscolaSession.computerPending
     private val trickPreview get() = briscolaSession.trickPreview
     private val trickResolving get() = briscolaSession.trickResolving
-    private var scopa: ScopaGame? = null
+    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession { renderScopa() } }
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
     private var fireplaceEnabled = false
@@ -77,6 +77,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         briscolaSession.stop()
+        scopaSession.stop()
         soundscape.release()
         salonAudio.stop()
         super.onDestroy()
@@ -298,28 +299,13 @@ class MainActivity : Activity() {
             .setPositiveButton("Torna al menu", null)
             .show()
     }
-    private fun startScopa() {
-        scopa = ScopaGame()
-        advanceScopaComputer()
-        renderScopa()
-    }
-
-    private fun advanceScopaComputer() {
-        val match = scopa ?: return
-        while (!match.finished && match.turn == 1) {
-            val (card, capture) = match.aiMove()
-            if (!match.play(1, card, capture)) break
-        }
-    }
+    private fun startScopa() = scopaSession.start()
 
     private fun playScopaCard(card: Card) {
-        val match = scopa ?: return
-        val choices = match.options(card)
+        val match = scopaSession.game ?: return
+        val choices = scopaSession.options(card)
         if (choices.size <= 1) {
-            if (match.play(0, card, choices.firstOrNull())) {
-                advanceScopaComputer()
-                renderScopa()
-            }
+            scopaSession.play(card, choices.firstOrNull())
             return
         }
         val labels = choices.map { capture ->
@@ -328,74 +314,20 @@ class MainActivity : Activity() {
         android.app.AlertDialog.Builder(this)
             .setTitle("Scegli la presa")
             .setItems(labels) { _, index ->
-                if (match.play(0, card, choices[index])) {
-                    advanceScopaComputer()
-                    renderScopa()
-                }
+                if (scopaSession.game === match) scopaSession.play(card, choices[index])
             }
             .setNegativeButton("Annulla", null)
             .show()
     }
 
     private fun renderScopa() {
-        val match = scopa ?: return
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(12), dp(12), dp(12), dp(16))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22)))
-        }
-        val scroll = ScrollView(this).apply { isFillViewport = true }
-        scroll.addView(root)
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        header.addView(label("‹ MENU", 14f, gold, true).apply {
-            setPadding(dp(8), dp(10), dp(8), dp(10))
-            setOnClickListener { scopa = null; showHome() }
-        })
-        header.addView(label("SCOPA", 25f, ivory, true),
-            LinearLayout.LayoutParams(0, -2, 1f))
-        root.addView(header, LinearLayout.LayoutParams(-1, -2))
-        root.addView(label("SCOPE · TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 15f, gold, true))
-        root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
-        root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
-        root.addView(cardBackRow(match.hands[1].size))
-        val felt = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(12), dp(8), dp(12))
-            background = panel(Color.rgb(18, 83, 62), 22, Color.rgb(121, 139, 82))
-        }
-        felt.addView(label("SUL TAVOLO", 13f, gold, true))
-        if (match.table.isEmpty()) {
-            felt.addView(label("Tavolo libero", 15f, ivory).apply {
-                setPadding(dp(8), dp(24), dp(8), dp(24))
-            })
-        } else {
-            felt.addView(cardRow(match.table))
-        }
-        root.addView(felt, LinearLayout.LayoutParams(-1, -2))
-        root.addView(label(match.lastMove, 13f, gold))
-        if (match.finished) {
-            val score = match.score()
-            val outcome = when {
-                score[0] > score[1] -> "HAI VINTO!"
-                score[0] < score[1] -> "HA VINTO IL COMPUTER"
-                else -> "PAREGGIO"
-            }
-            root.addView(label(outcome, 26f, gold, true))
-            root.addView(label("Punti finali: ${score[0]} — ${score[1]}", 20f, ivory))
-            root.addView(Button(this).apply {
-                text = "NUOVA PARTITA"
-                setOnClickListener { startScopa() }
-            })
-        } else {
-            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
-            root.addView(cardRow(match.hands[0]) { card -> if (match.turn == 0) playScopaCard(card) })
-        }
-        installScreen(scroll)
+        if (scopaSession.game == null) return
+        installScreen(it.studiosmus.carte.ui.ScopaScreen(
+            this, scopaSession, cardRenderer,
+            onBack = { scopaSession.stop(); showHome() },
+            onNewGame = { startScopa() },
+            onPlay = { card -> playScopaCard(card) }
+        ).render())
     }
 
     private fun startBriscola() = briscolaSession.start()
