@@ -91,8 +91,16 @@ class BriscolaScreen(
             )
         }
         val lead = match.lead
-        val leadView = (session.collectingCards?.first ?: lead?.second)?.let { renderer.cardTile(it) }
-        val replyView = (session.collectingCards?.second ?: session.trickPreview?.second)?.let { renderer.cardTile(it) }
+        val leadView = (session.collectingCards?.first ?: lead?.second)?.let {
+            renderer.playedCard(it,
+                computer = !session.collecting && session.trickPreview == null &&
+                    lead?.first == 1 && session.playedBy == 1)
+        }
+        val replyView = (session.collectingCards?.second ?: session.trickPreview?.second)?.let {
+            renderer.playedCard(it,
+                computer = !session.collecting && session.trickPreview != null &&
+                    session.playedBy == 1)
+        }
         TrickLayout.bind(
             table, leadView, replyView, match.remainingCards > 0,
             { dp(it) }, session.playedBy, session.collecting, session.lastWinner
