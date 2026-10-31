@@ -36,16 +36,9 @@ SHA256 = {
     "steps": "6c36c7aa608e66065d37e73c5863118fad0f99d66f28da14307e23e9ffdb3588",
     "voices": "0e45102d17749ee2af11f02b4d7878ceb3326ef799984d88e3010e5c64d86011",
 }
-# Source start, playback length, output rate, processing chain.
-# The original 3.0 / 1.2 / 2.0 second cuts were too long. In particular,
-# the PLAY impact occurred ~1.1 seconds after playback began. These verified
-# offsets place the first audible transient around 70-100 ms after the card
-# moves, and end within a single visual transition. All three are genuine
-# segments of the SAME CC0 recording, never synthetic foley.
+# Remaining ambience clips. Real card foley is built independently by
+# build_card_variations.py; no legacy duplicated card clips are reintroduced.
 CLIPS = {
-    "salon_card_deal": ("cards", 0.06, 0.48, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9,afade=t=out:st=0.40:d=0.08"),
-    "salon_card_play": ("cards", 6.22, 0.28, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9,afade=t=out:st=0.22:d=0.06"),
-    "salon_card_collect": ("cards", 12.06, 0.39, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9,afade=t=out:st=0.31:d=0.08"),
     "salon_fireplace": ("fire", 0.0, 70.0, "highpass=f=90,lowpass=f=2800,afftdn=nr=12:nf=-40,loudnorm=I=-24:TP=-5:LRA=15"),
     "salon_conversation": ("voices", 0.0, 19.0, "highpass=f=150,lowpass=f=4000,loudnorm=I=-22:TP=-4:LRA=12"),
     # Four genuine, non-identical sections of the verified conversation.
@@ -118,7 +111,7 @@ def render(source, target, offset, duration, filters):
 def main():
     needed = {out: spec for out, spec in CLIPS.items() if not (OUT / (out + ".ogg")).exists()}
     if not needed:
-        print("CC0 RECORDINGS: all 9 prepackaged by user")
+        print("CC0 RECORDINGS: all non-card recordings already available")
         return
     OUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="carte-freesound-") as working:
