@@ -77,6 +77,10 @@ jobs:
             python3 tools/audio/import_approved_recordings.py
           fi
 
+      - name: Ensure ffmpeg tools are present for audio validation
+        run: |
+          command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          command -v ffprobe
       - name: Verify short synchronized card Foley
         run: python3 tools/audio/check_card_cues.py
       - name: Verify distinct intermittent whisper excerpts
