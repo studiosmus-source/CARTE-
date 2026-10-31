@@ -283,6 +283,26 @@ class MainActivity : Activity() {
                 "$title: " + if (resources.getIdentifier(resource, "raw", packageName) != 0)
                     "presente" else "non incluso"
             }
+        root.addView(Button(this).apply {
+            text = "ASCOLTA UN SUONO"
+            setOnClickListener {
+                val samples = recordings.filter { (title, resource) ->
+                    title != "Jazz" && salonAudio.hasRecording(resource)
+                }
+                if (samples.isEmpty()) {
+                    android.widget.Toast.makeText(this@MainActivity,
+                        "Non ci sono registrazioni da ascoltare", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.app.AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Ascolta un suono isolato")
+                        .setItems(samples.map { it.first }.toTypedArray()) { _, index ->
+                            salonAudio.previewSample(samples[index].second)
+                        }
+                        .setNegativeButton("Chiudi", null)
+                        .show()
+                }
+            }
+        })
         root.addView(label("DIAGNOSTICA AUDIO", 18f, gold, true))
         root.addView(label(audioStatus, 14f, ivory).apply {
             setPadding(dp(10), dp(12), dp(10), dp(18))
