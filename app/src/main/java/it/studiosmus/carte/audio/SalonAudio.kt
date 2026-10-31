@@ -1,7 +1,9 @@
 package it.studiosmus.carte.audio
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.media.SoundPool
 import android.media.audiofx.Equalizer
 import android.os.Handler
 import android.os.Looper
@@ -40,6 +42,12 @@ class SalonAudio(
     private var settings = AmbienceSettings()
     private var fireplaceEnabled = false
     private var transientCount = 0
+    // Card impact cues are preloaded, unlike the long-running room ambience.
+    private var cardPool: SoundPool? = null
+    private val cardSamples = mutableMapOf<CardSoundEvent, Int>()
+    private val cardReady = mutableSetOf<Int>()
+    private var activeCardStream = 0
+    private var cardStopRunnable: Runnable? = null
 
     fun hasRecording(name: String): Boolean =
         context.resources.getIdentifier(name, "raw", context.packageName) != 0
@@ -125,6 +133,7 @@ class SalonAudio(
         musicPerspective = targetMusic(scene)
         roomPerspective = targetRoom(scene)
         ensureMusic()
+        prepareCardCues()
         if (fireplaceEnabled) playLoopIfMissing("salon_fireplace")
         AmbienceScheduler.Event.entries.forEach(::schedule)
         refreshMix()
@@ -135,6 +144,11 @@ class SalonAudio(
         stopPreview()
         running = false
         generation++
+        stopCardCue()
+        cardPool?.release()
+        cardPool = null
+        cardSamples.clear()
+        cardReady.clear()
         transition?.let(handler::removeCallbacks)
         transition = null
         pending.forEach(handler::removeCallbacks)
@@ -271,6 +285,10 @@ class SalonAudio(
                 if (previewPlayer != null && player === music) 0.08f else 1f
             try { player.setVolume(gain, gain) } catch (_: IllegalStateException) { }
         }
+        if (activeCardStream != 0) {
+            val gain = (settings.cards * roomPerspective).coerceIn(0f, 1f)
+            cardPool?.setVolume(activeCardStream, gain, gain)
+        }
     }
 
     private fun dispose(player: MediaPlayer) {
@@ -297,15 +315,74 @@ class SalonAudio(
         try { player.start() } catch (_: IllegalStateException) { dispose(player) }
     }
 
-    /** Plays approved recorded foley only; absent sample stays silent. */
-    fun playCard(event: CardSoundEvent): Boolean {
-        val name = when (event) {
-            CardSoundEvent.DEAL -> "salon_card_deal"
-            CardSoundEvent.PLAY -> "salon_card_play"
-            CardSoundEvent.COLLECT -> "salon_card_collect"
+    /**
+     * Preload short real-world card foley on resume so that PLAY/DEAL/COLLECT
+     * are triggered without the MediaPlayer creation latency on every move.
+     * Loaded IDs are tied to this pool instance; stale callbacks are ignored.
+     */
+    private fun prepareCardCues() {
+        if (cardPool != null) return
+        val attributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_GAME)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        val pool = SoundPool.Builder()
+            .setMaxStreams(1)
+            .setAudioAttributes(attributes)
+            .build()
+        cardPool = pool
+        pool.setOnLoadCompleteListener { completedPool, soundId, status ->
+            if (cardPool === completedPool && status == 0) cardReady.add(soundId)
         }
-        if (!hasRecording(name)) return false
-        if (settings.cards > 0f) playOnce(name)
+        for (event in CardSoundEvent.entries) {
+            val name = when (event) {
+                CardSoundEvent.DEAL -> "salon_card_deal"
+                CardSoundEvent.PLAY -> "salon_card_play"
+                CardSoundEvent.COLLECT -> "salon_card_collect"
+            }
+            val resource = context.resources.getIdentifier(name, "raw", context.packageName)
+            if (resource != 0) {
+                val soundId = pool.load(context, resource, 1)
+                if (soundId != 0) cardSamples[event] = soundId
+            }
+        }
+    }
+
+    private fun stopCardCue() {
+        cardStopRunnable?.let(handler::removeCallbacks)
+        cardStopRunnable = null
+        if (activeCardStream != 0) {
+            cardPool?.stop(activeCardStream)
+            activeCardStream = 0
+        }
+    }
+
+    /** One real recorded impact per visual event; never let it overlap the next action. */
+    fun playCard(event: CardSoundEvent): Boolean {
+        val pool = cardPool ?: return false
+        if (!running || scene != Scene.SALON || settings.cards <= 0f) return false
+        val soundId = cardSamples[event] ?: return false
+        if (soundId !in cardReady) return false
+        stopCardCue()
+        val volume = (settings.cards * roomPerspective).coerceIn(0f, 1f)
+        val stream = pool.play(soundId, volume, volume, 1, 0, 1f)
+        if (stream == 0) return false
+        activeCardStream = stream
+        // Defensive caps also cover an accidentally bundled long audio file.
+        val maxDuration = when (event) {
+            CardSoundEvent.DEAL -> 500L
+            CardSoundEvent.PLAY -> 310L
+            CardSoundEvent.COLLECT -> 420L
+        }
+        val stop = Runnable {
+            if (cardPool === pool && activeCardStream == stream) {
+                pool.stop(stream)
+                activeCardStream = 0
+                cardStopRunnable = null
+            }
+        }
+        cardStopRunnable = stop
+        handler.postDelayed(stop, maxDuration)
         return true
     }
 
@@ -320,12 +397,10 @@ class SalonAudio(
         val session = generation
         players.add(player)
         names[player] = name
-        if (name != "salon_card_deal" && name != "salon_card_play" &&
-            name != "salon_card_collect") transientCount++
+        transientCount++
         refreshMix()
         fun finish(p: MediaPlayer) {
-            if (session == generation && name != "salon_card_deal" &&
-                name != "salon_card_play" && name != "salon_card_collect") {
+            if (session == generation) {
                 transientCount = (transientCount - 1).coerceAtLeast(0)
             }
             dispose(p)
