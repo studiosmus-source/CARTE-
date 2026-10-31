@@ -42,26 +42,33 @@ class BriscolaGameTest {
         assertFalse(game.play(0, game.hands[1].first()))
         assertEquals(0, game.tricksPlayed)
     }
-    @Test fun exposedTrumpIsDrawnOnlyAfterCoveredStockRunsOut() {
+    private fun playOne(game: BriscolaGame) {
+        val player = game.turn
+        val card = if (player == 1) game.aiCard() else game.hands[0].first()
+        assertTrue(game.play(player, card))
+    }
+
+    @Test fun exposedTrumpIsDrawnLastByTrickLoser() {
         repeat(100) { seed ->
             val game = BriscolaGame(Random(seed))
             assertEquals(34, game.remainingCards)
             assertFalse(game.hands.flatten().contains(game.trumpCard))
-            while (game.remainingCards > 1) {
-                val player = game.turn
-                val card = if (player == 1) game.aiCard() else game.hands[0].first()
-                assertTrue(game.play(player, card))
+            while (game.remainingCards > 2) {
+                playOne(game)
+                assertEquals(0, game.remainingCards % 2)
+                assertFalse(game.hands.flatten().contains(game.trumpCard))
             }
-            assertEquals(1, game.remainingCards)
+            assertEquals(2, game.remainingCards)
+            assertNull(game.lead)
             assertFalse(game.hands.flatten().contains(game.trumpCard))
-            // The exposed trump stays visible until the next trick is resolved.
-            while (game.remainingCards > 0) {
-                val player = game.turn
-                val card = if (player == 1) game.aiCard() else game.hands[0].first()
-                assertTrue(game.play(player, card))
-            }
+            val tricksBefore = game.tricksPlayed
+            while (game.tricksPlayed == tricksBefore) playOne(game)
             assertEquals(0, game.remainingCards)
-            assertTrue(game.hands.flatten().contains(game.trumpCard))
+            val winner = game.leader
+            assertTrue(game.hands[1 - winner].contains(game.trumpCard))
+            assertFalse(game.hands[winner].contains(game.trumpCard))
+            assertEquals(3, game.hands[0].size)
+            assertEquals(3, game.hands[1].size)
         }
     }
 

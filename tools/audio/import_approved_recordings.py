@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+"""Import verified CC0 Freesound recordings to CARTE (build-time only).
+
+A user-provided Ogg in res/raw always wins. All other recordings are sourced
+from the approved original Freesound pages, using their official public HQ
+preview. The Android app itself remains offline. A missing source is a HARD
+build error; no hidden synthetic or placeholder fallback is allowed.
+"""
+from pathlib import Path
+from urllib.request import Request, urlopen
+import hashlib
+import html
+import re
+import subprocess
+import tempfile
+import sys
+
+OUT = Path("app/src/main/res/raw")
+SOURCES = {
+    "cards": ("MellowAudio", 591486),
+    "fire": ("Davor", 382616),
+    "voices": ("SpliceSound", 260124),
+    "glass": ("AardsReal", 842180),
+    "chair": ("SpliceSound", 218316),
+    "steps": ("allrealsound", 161756),
+    "claps": ("Jofae", 362954),
+}
+# Pin the verified HQ preview bytes from the successful 31 Oct 2026 CI run.
+# A changed upstream source must be reviewed, not silently bundled.
+SHA256 = {
+    "cards": "e68fd839e3d19ebe078735be21f3306b545f5f8acf26aa5747b9cdf87c87fecc",
+    "chair": "7ee3bd4021e3e1458ac9d8c736730de1a068d24587383ab7ff8114b965b7c4a9",
+    "claps": "d87c42b8252448692a07bd54e33a83c8d3cce07b5a2156baccdeaa7df1075cde",
+    "fire": "1e470bafa4a1a44d143beb0ae65664e574fe01243d82901a8428b4e41251320e",
+    "glass": "c9151cdc996b764b23ae0b0fc0ea527c5b4315af4d74f89052c1ecfc38fc0a24",
+    "steps": "6c36c7aa608e66065d37e73c5863118fad0f99d66f28da14307e23e9ffdb3588",
+    "voices": "0e45102d17749ee2af11f02b4d7878ceb3326ef799984d88e3010e5c64d86011",
+}
+# This is now ONLY for the isolated legacy conversation preview.
+# The spatial mixes of fire, four short whispers, glasses, chairs, footsteps
+# and applause have one authoritative renderer: rebuild_spatial_salon.py.
+# Keeping those paths in this table would create competing old/new treatments.
+CLIPS = {
+    "salon_conversation": (
+        "voices", 0.0, 19.0,
+        "highpass=f=150,lowpass=f=3000,afade=t=in:st=0:d=0.5,"
+        "afade=t=out:st=18.4:d=0.6"
+    ),
+}
+MAX_DOWNLOAD = 12_000_000
+USER_AGENT = "CARTE-offline-audio-import/1.0 (https://github.com/studiosmus-source/CARTE-)"
+
+
+def get(url, limit):
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(request, timeout=40) as response:
+        declared = response.headers.get("Content-Length")
+        if declared is not None and int(declared) > limit:
+            raise RuntimeError(f"Source too large: {url}")
+        data = response.read(limit + 1)
+    if len(data) > limit or len(data) < 500:
+        raise RuntimeError(f"Invalid source size: {url}: {len(data)}")
+    return data
+
+
+def fetch_source(name, author, sound_id, dest):
+    page_url = f"https://freesound.org/people/{author}/sounds/{sound_id}/"
+    page = get(page_url, 1_000_000).decode("utf-8", "replace")
+    if "Creative Commons 0" not in html.unescape(page):
+        raise RuntimeError(f"Source lacks explicit CC0 marker: {page_url}")
+    match = re.search(
+        r'data-static-file-url=["\'](https://cdn\.freesound\.org/previews/[^"\']+-hq\.mp3)["\']',
+        page,
+    )
+    if not match:
+        raise RuntimeError(f"High quality Freesound preview not found: {page_url}")
+    audio_url = html.unescape(match.group(1))
+    audio = get(audio_url, MAX_DOWNLOAD)
+    if audio[:3] != b"ID3" and not (audio[0] == 0xff and (audio[1] & 0xe0) == 0xe0):
+        raise RuntimeError(f"Not an MP3 recording: {page_url}")
+    digest = hashlib.sha256(audio).hexdigest()
+    if digest != SHA256[name]:
+        raise RuntimeError(f"CC0 recording checksum changed: {name}, {digest}")
+    dest.write_bytes(audio)
+    print(
+        f"CC0 RECORDING: {name}, Freesound {sound_id}, {len(audio)} bytes, "
+        f"SHA256={hashlib.sha256(audio).hexdigest()}"
+    )
+
+
+def render(source, target, offset, duration, filters):
+    # Stereo 48 kHz, constrained bitrate for an installable offline package.
+    command = [
+        "ffmpeg", "-v", "error", "-nostdin", "-y",
+        "-ss", str(offset), "-t", str(duration), "-i", str(source),
+        "-filter:a", filters,
+        "-ar", "48000", "-ac", "2", "-c:a", "libvorbis", "-q:a", "4",
+        str(target),
+    ]
+    subprocess.run(command, check=True, timeout=75)
+    if target.stat().st_size < 2000 or target.read_bytes()[:4] != b"OggS":
+        raise RuntimeError(f"Invalid processed recording: {target}")
+
+
+def main():
+    needed = {out: spec for out, spec in CLIPS.items() if not (OUT / (out + ".ogg")).exists()}
+    if not needed:
+        print("CC0 RECORDINGS: all non-card recordings already available")
+        return
+    OUT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="carte-freesound-") as working:
+        directory = Path(working)
+        recordings = {}
+        for source in sorted({spec[0] for spec in needed.values()}):
+            author, sound_id = SOURCES[source]
+            filename = directory / f"{source}.mp3"
+            fetch_source(source, author, sound_id, filename)
+            recordings[source] = filename
+        for target, (source, start, seconds, filters) in needed.items():
+            output = OUT / (target + ".ogg")
+            try:
+                render(recordings[source], output, start, seconds, filters)
+            except Exception:
+                output.unlink(missing_ok=True)
+                raise
+            print(f"CC0 INCLUDED: {target}.ogg, {output.stat().st_size} bytes")
+    print("CC0 RECORDINGS: all approved external samples have been imported.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        print("CC0 RECORDINGS ERROR:", str(exc), file=sys.stderr)
+        raise

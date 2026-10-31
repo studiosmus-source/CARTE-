@@ -37,6 +37,23 @@ class ScopaGameTest {
         }
     }
 
+    @Test fun publicStockCountDepletesEverySixCardsPlayed() {
+        val game = ScopaGame(Random(71))
+        assertEquals(30, game.remainingCards)
+        repeat(6) {
+            val player = game.turn
+            val (card, capture) = if (player == 1) game.aiMove()
+            else {
+                val own = game.hands[0].first()
+                own to game.options(own).firstOrNull()
+            }
+            assertTrue(game.play(player, card, capture))
+        }
+        assertEquals(24, game.remainingCards)
+        assertEquals(3, game.hands[0].size)
+        assertEquals(3, game.hands[1].size)
+    }
+
     @Test fun invalidPlayerAndTurnCannotChangeState() {
         val game = ScopaGame(Random(7))
         val card = game.hands[0].first()

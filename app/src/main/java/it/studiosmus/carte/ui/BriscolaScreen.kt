@@ -1,0 +1,187 @@
+package it.studiosmus.carte.ui
+
+import android.content.Context
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
+import android.view.View
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
+
+/** Pure screen composition: state is owned by BriscolaSession; artwork by CardRenderer. */
+class BriscolaScreen(
+    private val context: Context,
+    private val session: BriscolaSession,
+    private val renderer: CardRenderer,
+    private val onBack: () -> Unit,
+    private val onSettings: () -> Unit,
+    private val onNewGame: () -> Unit,
+    private val fireplaceLight: Float = 0f
+) {
+    private val ivory = Color.rgb(247, 233, 203)
+    private val gold = Color.rgb(218, 174, 94)
+    private val forest = Color.rgb(13, 54, 45)
+    private fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
+    private fun panel(color: Int, radius: Int = 22, stroke: Int = gold) =
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(radius).toFloat()
+            setStroke(dp(1), stroke)
+        }
+    private fun label(value: String, size: Float, color: Int, bold: Boolean = false) =
+        TextView(context).apply {
+            text = value
+            textSize = size
+            setTextColor(color)
+            gravity = Gravity.CENTER
+            typeface = Typeface.create(Typeface.SERIF,
+                if (bold) Typeface.BOLD else Typeface.NORMAL)
+        }
+
+    fun render(): View {
+        val match = session.game ?: return View(context)
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            // Cards travel between deck, table and hand across sibling bounds.
+            clipChildren = false
+            clipToPadding = false
+            setPadding(dp(10), dp(8), dp(10), dp(10))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(24, 30, 26), Color.rgb(39, 43, 35), Color.rgb(20, 25, 23)))
+        }
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        header.addView(label("‹", 30f, gold, true).apply {
+            setPadding(dp(12), dp(4), dp(12), dp(4))
+            setOnClickListener {
+                onBack()
+            }
+        })
+        header.addView(label("BRISCOLA", 19f, ivory, true),
+            LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(label("⚙", 23f, gold).apply {
+            setPadding(dp(12), dp(4), dp(12), dp(4))
+            setOnClickListener {
+                // Finish the current trick before opening settings: a pending
+                // callback must never replace the settings screen unexpectedly.
+                if (!session.trickResolving && !session.computerPending) {
+                    onSettings()
+                }
+            }
+        })
+        root.addView(header, LinearLayout.LayoutParams(-1, -2))
+        val opponentBackRow = renderer.cardBackRow(match.hands[1].size)
+        root.addView(opponentBackRow)
+        root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
+
+        val table = SalonTable(context, fireplaceLight)
+        root.addView(table, LinearLayout.LayoutParams(-1, 0, 1f).apply {
+            topMargin = dp(8)
+            bottomMargin = dp(8)
+        })
+        val visibleStock = if (match.remainingCards > 0) {
+            BriscolaStock(context, renderer, match.trumpCard, match.remainingCards).also {
+                table.addView(it, FrameLayout.LayoutParams(dp(150), dp(160),
+                    Gravity.START or Gravity.CENTER_VERTICAL).apply {
+                    leftMargin = dp(29)
+                })
+            }
+        } else null
+        val stockOrigin = visibleStock?.getChildAt(
+            if (match.remainingCards > 1) 1 else 0)
+        if (session.dealing && stockOrigin != null) {
+            (opponentBackRow as? LinearLayout)?.let { backs ->
+                for (index in 0 until backs.childCount)
+                    CardMotion.dealFromStock(backs.getChildAt(index),
+                        stockOrigin, ::dp, index * 105L)
+            }
+        }
+        val lead = match.lead
+        val leadView = (session.collectingCards?.first ?: lead?.second)?.let {
+            renderer.playedCard(it,
+                computer = !session.collecting && session.trickPreview == null &&
+                    lead?.first == 1 && session.playedBy == 1)
+        }
+        val replyView = (session.collectingCards?.second ?: session.trickPreview?.second)?.let {
+            renderer.playedCard(it,
+                computer = !session.collecting && session.trickPreview != null &&
+                    session.playedBy == 1)
+        }
+        TrickLayout.bind(
+            table, leadView, replyView, match.remainingCards > 0,
+            { dp(it) }, session.playedBy, session.collecting,
+            session.lastWinner, animateReply = !session.trickResolving
+        )
+        if (session.trickResolving && !session.collecting &&
+            session.playedBy == 1 && replyView != null) {
+            val index = match.hands[1].indexOf(session.trickPreview?.second)
+            val origin = (opponentBackRow as? LinearLayout)
+                ?.takeIf { index in 0 until it.childCount }
+                ?.getChildAt(index)
+            if (origin != null) {
+                origin.alpha = 0f
+                CardMotion.playFromHand(replyView, origin)
+            } else CardMotion.reveal(replyView, true, ::dp)
+        }
+        val tableMessage = when {
+            session.dealing -> "DISTRIBUZIONE DELLE CARTE"
+            session.collecting -> "RACCOLTA DELLA PRESA"
+            session.trickResolving -> "PRESA IN CORSO"
+            lead?.first == 1 -> "IL COMPUTER HA GIOCATO"
+            lead?.first == 0 -> "HAI GIOCATO"
+            else -> match.lastTrick.ifEmpty { "TOCCA A TE" }
+        }
+        table.addView(label(tableMessage, 12f, ivory, true).apply {
+            background = panel(Color.argb(175, 12, 31, 25), 11, Color.argb(95, 196, 157, 91))
+        }, FrameLayout.LayoutParams(-1, dp(36), Gravity.BOTTOM).apply {
+            leftMargin = dp(46)
+            rightMargin = dp(46)
+            bottomMargin = dp(43)
+        })
+        root.addView(label("TU  ·  ${match.points[0]} PUNTI", 14f, gold, true))
+        if (match.finished) {
+            root.addView(label(match.result(), 24f, ivory, true))
+            root.addView(Button(context).apply {
+                text = "NUOVA PARTITA"
+                setTextColor(ivory)
+                background = panel(Color.rgb(70, 48, 33), 14, Color.rgb(124, 89, 55))
+                setOnClickListener { onNewGame() }
+            })
+        } else {
+            val playerRow = renderer.cardRow(match.hands[0], { card ->
+                if (match.turn == 0 && !session.trickResolving && !session.dealing && !session.collecting) session.play(0, card)
+            })
+            root.addView(playerRow)
+            if (session.trickResolving && !session.collecting &&
+                session.playedBy == 0 && replyView != null) {
+                val index = match.hands[0].indexOf(session.trickPreview?.second)
+                val origin = (playerRow as? android.widget.HorizontalScrollView)
+                    ?.getChildAt(0)?.let { it as? LinearLayout }
+                    ?.takeIf { index in 0 until it.childCount }
+                    ?.getChildAt(index)
+                if (origin != null) {
+                    origin.alpha = 0f
+                    CardMotion.playFromHand(replyView, origin)
+                } else CardMotion.reveal(replyView, false, ::dp)
+            }
+            if (session.dealing && stockOrigin != null) {
+                (playerRow as? android.widget.HorizontalScrollView)
+                    ?.getChildAt(0)?.let { hand ->
+                        (hand as? LinearLayout)?.let { tiles ->
+                            for (index in 0 until tiles.childCount)
+                                CardMotion.dealFromStock(tiles.getChildAt(index),
+                                    stockOrigin, ::dp, index * 105L + 45L)
+                        }
+                    }
+            }
+        }
+        return root
+    }
+
+}
