@@ -64,7 +64,7 @@ class ScopaSession(private val changed: () -> Unit,
         if (choices.isEmpty() && capture != null) return false
         if (choices.size > 1 && capture == null) return false
         if (capture != null && choices.none { it.size == capture.size && it.toSet() == capture.toSet() }) return false
-        queueMove(match, 0, card, capture)
+        queueMove(match, 0, card, capture ?: choices.singleOrNull())
         return true
     }
 
@@ -77,6 +77,8 @@ class ScopaSession(private val changed: () -> Unit,
         handler.postDelayed({
             if (game !== match) return@postDelayed
             val oldHandSize = match.hands[0].size
+            val tableBefore = match.table.toList()
+            val capturedBefore = match.captured[player].size
             if (!match.play(player, card, capture)) {
                 preview = null
                 busy = false
@@ -84,8 +86,12 @@ class ScopaSession(private val changed: () -> Unit,
                 return@postDelayed
             }
             preview = null
-            collecting = capture != null
-            collectedCards = if (capture != null) capture + card else emptyList()
+            val actuallyCaptured = match.captured[player].drop(capturedBefore)
+            collecting = actuallyCaptured.isNotEmpty()
+            collectedCards = actuallyCaptured.ifEmpty {
+                if (match.finished && tableBefore.isNotEmpty() && match.lastCapturer == player)
+                    tableBefore else emptyList()
+            }
             captureWinner = player
             if (collecting) sound(Soundscape.CardEvent.COLLECT)
             changed()
