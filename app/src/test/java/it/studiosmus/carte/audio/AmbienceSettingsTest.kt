@@ -19,6 +19,13 @@ class AmbienceSettingsTest {
         assertEquals(0.9f, result.cards, 0f)
     }
 
+    @Test fun allFourWhispersHaveAudibleGainAtAnEnabledVolume() {
+        val mix = AmbienceSettings(conversations = 0.20f)
+        assertEquals(0.104f, mix.conversationGain(1f), 0.00001f)
+        assertEquals(0f, mix.conversationGain(0f), 0f)
+        assertEquals(0f, AmbienceSettings(conversations = 0f).conversationGain(1f), 0f)
+    }
+
     @Test fun allEventDelaysRespectLimits() {
         val scheduler = AmbienceScheduler(Random(42))
         repeat(1000) {
