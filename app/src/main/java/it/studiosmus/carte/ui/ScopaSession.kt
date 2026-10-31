@@ -29,13 +29,24 @@ class ScopaSession(private val changed: () -> Unit,
     var scopaFlashPlayer: Int? = null
         private set
 
+    private fun cueDealing(match: ScopaGame) {
+        // Trigger real card impacts as cards reach the hands, never at the
+        // moment the animation first leaves the stock.
+        handler.postDelayed({
+            if (game === match && dealing) sound(CardSoundEvent.DEAL)
+        }, 305L)
+        handler.postDelayed({
+            if (game === match && dealing) sound(CardSoundEvent.DEAL)
+        }, 565L)
+    }
+
     fun start() {
         stop()
         val match = ScopaGame()
         game = match
         busy = true
         dealing = true
-        sound(CardSoundEvent.DEAL)
+        cueDealing(match)
         changed()
         handler.postDelayed({
             if (game !== match) return@postDelayed
@@ -77,7 +88,9 @@ class ScopaSession(private val changed: () -> Unit,
         busy = true
         scopaFlashPlayer = null
         preview = card
-        sound(CardSoundEvent.PLAY)
+        handler.postDelayed({
+            if (game === match && preview === card) sound(CardSoundEvent.PLAY)
+        }, 200L)
         changed()
         handler.postDelayed({
             if (game !== match) return@postDelayed
@@ -108,14 +121,16 @@ class ScopaSession(private val changed: () -> Unit,
                     tableBefore else emptyList()
             }
             captureWinner = player
-            if (collecting) sound(CardSoundEvent.COLLECT)
+            if (collecting) handler.postDelayed({
+                if (game === match && collecting) sound(CardSoundEvent.COLLECT)
+            }, 230L)
             changed()
             handler.postDelayed({
                 if (game !== match) return@postDelayed
                 collecting = false
                 collectedCards = emptyList()
                 dealing = !match.finished && match.hands[0].size > oldHandSize
-                if (dealing) sound(CardSoundEvent.DEAL)
+                if (dealing) cueDealing(match)
                 changed()
                 handler.postDelayed({
                     if (game !== match) return@postDelayed
