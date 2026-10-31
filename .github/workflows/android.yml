@@ -53,6 +53,25 @@ jobs:
             python3 tools/fetch_neapolitan_cards.py
           fi
           test "$(find app/src/main/assets/cards -maxdepth 1 -name '*.jpg' | wc -l)" -eq 40
+      - name: Import approved salon recordings if bundle supplied
+        run: |
+          python3 tools/audio/import_salon_audio.py
+      - name: Verify the imported sound resources
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          src = Path("tools/audio/CARTE-Salon-Audio.zip")
+          if src.exists():
+              with ZipFile(src) as audio:
+                  for name in audio.namelist():
+                      actual = Path("app/src/main/res/raw") / name
+                      assert actual.is_file(), f"Missing imported sound: {name}"
+                      assert actual.stat().st_size == audio.getinfo(name).file_size, f"Wrong size: {name}"
+              print("All approved audio files are present before compilation.")
+          else:
+              print("Audio bundle not uploaded yet; this build has no sampled music/ambience.")
+          PY
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build debug APK
