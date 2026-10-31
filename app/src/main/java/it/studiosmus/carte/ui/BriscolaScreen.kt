@@ -72,9 +72,7 @@ class BriscolaScreen(
             }
         })
         root.addView(header, LinearLayout.LayoutParams(-1, -2))
-        root.addView(renderer.cardBackRow(match.hands[1].size).apply {
-            if (session.dealing) CardMotion.deal(this, true) { dp(it) }
-        })
+        root.addView(renderer.cardBackRow(match.hands[1].size, session.dealing))
         root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
 
         val table = SalonTable(context)
@@ -116,11 +114,9 @@ class BriscolaScreen(
                 setOnClickListener { onNewGame() }
             })
         } else {
-            root.addView(renderer.cardRow(match.hands[0]) { card ->
+            root.addView(renderer.cardRow(match.hands[0], { card ->
                 if (match.turn == 0 && !session.trickResolving && !session.dealing && !session.collecting) session.play(0, card)
-            }.apply {
-                if (session.dealing) CardMotion.deal(this, false) { dp(it) }
-            })
+            }, if (session.dealing) false else null))
         }
         return root
     }
