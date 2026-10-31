@@ -18,7 +18,8 @@ class BriscolaScreen(
     private val renderer: CardRenderer,
     private val onBack: () -> Unit,
     private val onSettings: () -> Unit,
-    private val onNewGame: () -> Unit
+    private val onNewGame: () -> Unit,
+    private val fireplaceLight: Float = 0f
 ) {
     private val ivory = Color.rgb(247, 233, 203)
     private val gold = Color.rgb(218, 174, 94)
@@ -75,7 +76,7 @@ class BriscolaScreen(
         root.addView(renderer.cardBackRow(match.hands[1].size, session.dealing))
         root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
 
-        val table = SalonTable(context)
+        val table = SalonTable(context, fireplaceLight)
         root.addView(table, LinearLayout.LayoutParams(-1, 0, 1f).apply {
             topMargin = dp(8)
             bottomMargin = dp(8)
