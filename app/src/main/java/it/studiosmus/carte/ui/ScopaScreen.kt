@@ -66,10 +66,22 @@ class ScopaScreen(
         root.addView(label("SCOPE · TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 15f, gold, true))
         root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
-        root.addView(renderer.cardBackRow(match.hands[1].size, session.dealing))
+        val opponentBackRow = renderer.cardBackRow(match.hands[1].size)
+        root.addView(opponentBackRow)
         val felt = SalonTable(context, fireplaceLight).apply {
             minimumHeight = dp(365)
         }
+        // The deck has a real location on the felt, so distribution can
+        // originate from that location rather than from offscreen.
+        val stockView = if (match.remainingCards > 0 || session.dealing) {
+            renderer.cardBackTile(87).also { stock ->
+                felt.addView(stock, android.widget.FrameLayout.LayoutParams(
+                    dp(42), dp(68), Gravity.TOP or Gravity.END).apply {
+                    rightMargin = dp(15)
+                    topMargin = dp(26)
+                })
+            }
+        } else null
         val tableContent = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -143,7 +155,28 @@ class ScopaScreen(
             })
         } else {
             root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
-            root.addView(renderer.cardRow(match.hands[0], { card -> if (match.turn == 0 && !session.busy) onPlay(card) }, if (session.dealing) false else null))
+            val playerRow = renderer.cardRow(match.hands[0],
+                { card -> if (match.turn == 0 && !session.busy) onPlay(card) })
+            root.addView(playerRow)
+            if (session.dealing && stockView != null) {
+                (playerRow as? android.widget.HorizontalScrollView)
+                    ?.getChildAt(0)?.let { hand ->
+                        (hand as? LinearLayout)?.let { tiles ->
+                            for (index in 0 until tiles.childCount) {
+                                CardMotion.dealFromStock(tiles.getChildAt(index),
+                                    stockView, ::dp, index * 110L + 55L)
+                            }
+                        }
+                    }
+            }
+        }
+        if (session.dealing && stockView != null) {
+            (opponentBackRow as? LinearLayout)?.let { row ->
+                for (index in 0 until row.childCount) {
+                    CardMotion.dealFromStock(row.getChildAt(index), stockView,
+                        ::dp, index * 110L)
+                }
+            }
         }
         return scroll
     }
