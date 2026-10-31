@@ -73,7 +73,8 @@ class BriscolaScreen(
             }
         })
         root.addView(header, LinearLayout.LayoutParams(-1, -2))
-        root.addView(renderer.cardBackRow(match.hands[1].size, session.dealing))
+        val opponentBackRow = renderer.cardBackRow(match.hands[1].size)
+        root.addView(opponentBackRow)
         root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
 
         val table = SalonTable(context, fireplaceLight)
@@ -81,14 +82,22 @@ class BriscolaScreen(
             topMargin = dp(8)
             bottomMargin = dp(8)
         })
-        if (match.remainingCards > 0) {
-            table.addView(
-                BriscolaStock(context, renderer, match.trumpCard, match.remainingCards),
-                FrameLayout.LayoutParams(dp(150), dp(160),
+        val visibleStock = if (match.remainingCards > 0) {
+            BriscolaStock(context, renderer, match.trumpCard, match.remainingCards).also {
+                table.addView(it, FrameLayout.LayoutParams(dp(150), dp(160),
                     Gravity.START or Gravity.CENTER_VERTICAL).apply {
                     leftMargin = dp(29)
-                }
-            )
+                })
+            }
+        } else null
+        val stockOrigin = visibleStock?.getChildAt(
+            if (match.remainingCards > 1) 1 else 0)
+        if (session.dealing && stockOrigin != null) {
+            (opponentBackRow as? LinearLayout)?.let { backs ->
+                for (index in 0 until backs.childCount)
+                    CardMotion.dealFromStock(backs.getChildAt(index),
+                        stockOrigin, ::dp, index * 105L)
+            }
         }
         val lead = match.lead
         val leadView = (session.collectingCards?.first ?: lead?.second)?.let {
@@ -130,9 +139,20 @@ class BriscolaScreen(
                 setOnClickListener { onNewGame() }
             })
         } else {
-            root.addView(renderer.cardRow(match.hands[0], { card ->
+            val playerRow = renderer.cardRow(match.hands[0], { card ->
                 if (match.turn == 0 && !session.trickResolving && !session.dealing && !session.collecting) session.play(0, card)
-            }, if (session.dealing) false else null))
+            })
+            root.addView(playerRow)
+            if (session.dealing && stockOrigin != null) {
+                (playerRow as? android.widget.HorizontalScrollView)
+                    ?.getChildAt(0)?.let { hand ->
+                        (hand as? LinearLayout)?.let { tiles ->
+                            for (index in 0 until tiles.childCount)
+                                CardMotion.dealFromStock(tiles.getChildAt(index),
+                                    stockOrigin, ::dp, index * 105L + 45L)
+                        }
+                    }
+            }
         }
         return root
     }
