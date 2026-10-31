@@ -56,15 +56,15 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
             canvas.drawColor(Color.rgb(17, 35, 29))
 
             val bitmap = photo(context) ?: return
-            // Aspect-correct CENTER_CROP plus a small intentional close-up:
-            // wood rim may exit the frame, but the green playing surface does not.
+            // The user-supplied photograph already contains the portrait playing-field
+            // crop. Fit it without extra zoom so the side wood remains visible.
             // No bitmap stretching, no duplicated material shaders.
-            val zoom = 1.10f
+            val zoom = 1.0f
             val scale = max(widthPx / bitmap.width, heightPx / bitmap.height) * zoom
             val sourceWidth = widthPx / scale
             val sourceHeight = heightPx / scale
             val midX = bitmap.width * .50f
-            val midY = bitmap.height * .47f
+            val midY = bitmap.height * .50f
             val x0 = (midX - sourceWidth / 2f)
                 .coerceIn(0f, bitmap.width - sourceWidth)
             val y0 = (midY - sourceHeight / 2f)
