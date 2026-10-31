@@ -46,7 +46,7 @@ class MainActivity : Activity() {
         (findViewById<View>(android.R.id.content) as ViewGroup).setBackgroundColor(Color.BLACK)
         salonAudio.enterScene(SalonAudio.Scene.HOME, 0L)
         val prefs = getSharedPreferences("ambience", MODE_PRIVATE)
-        fireplaceEnabled = prefs.getBoolean("enabled", false)
+        fireplaceEnabled = prefs.getBoolean("enabled", true)
         ambience = AmbienceSettings(
             fireplace = prefs.getFloat("fireplace", 0.22f),
             jazz = prefs.getFloat("jazz", 0.20f),
