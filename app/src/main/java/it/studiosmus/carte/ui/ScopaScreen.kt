@@ -86,9 +86,12 @@ class ScopaScreen(
                 setPadding(dp(8), dp(30), dp(8), dp(30))
             })
         } else {
-            tableContent.addView(renderer.cardRow(match.table).apply {
-                if (session.collecting) CardMotion.collect(this, match.turn == 0) { dp(it) }
-            })
+            tableContent.addView(renderer.cardRow(match.table))
+        }
+        if (session.collecting) {
+            val captured = renderer.cardRow(session.collectedCards)
+            tableContent.addView(captured)
+            CardMotion.collect(captured, session.captureWinner == 1) { dp(it) }
         }
         session.preview?.let { card ->
             tableContent.addView(renderer.cardTile(card).apply {
