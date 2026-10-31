@@ -238,14 +238,14 @@ class SalonAudio(
 
     private fun volumeFor(name: String): Float = when (name) {
         "salon_jazz" -> settings.jazz * 0.82f * musicPerspective
-        "salon_fireplace" -> if (fireplaceEnabled) settings.fireplace * 0.40f * roomPerspective else 0f
+        "salon_fireplace" -> if (fireplaceEnabled) settings.fireplace * 0.67f * roomPerspective else 0f
         "salon_conversation" -> settings.conversationGain(roomPerspective)
         "salon_whisper_01", "salon_whisper_02", "salon_whisper_03",
         "salon_whisper_04" -> settings.conversationGain(roomPerspective)
-        "salon_glassware" -> settings.glassware * 0.52f * roomPerspective
+        "salon_glassware" -> settings.glassware * 0.44f * roomPerspective
         "salon_door", "salon_chair", "salon_footsteps" ->
-            settings.doors * 0.40f * roomPerspective
-        "salon_applause" -> settings.conversations * 0.54f * roomPerspective
+            settings.doors * 0.33f * roomPerspective
+        "salon_applause" -> settings.conversations * 1.00f * roomPerspective
         "salon_card_deal", "salon_card_play", "salon_card_collect" ->
             settings.cards * roomPerspective
         else -> 0f
@@ -403,9 +403,9 @@ class SalonAudio(
         return true
     }
 
-    /** Only an approved, restrained applause; defeats and ties stay silent. */
+    /** A short genuine small-group applause, warm but not television-like. */
     fun playResult(won: Boolean) {
-        if (won && scene == Scene.SALON) playOnce("salon_applause")
+        if (won && scene == Scene.SALON) playOnce("salon_applause", level = .94f, pan = .08f)
     }
 
     private fun playOnce(name: String, level: Float = 1f, pan: Float = 0f): Boolean {
@@ -463,8 +463,10 @@ class SalonAudio(
         if (available.isEmpty()) return
         val firstIndex = scheduler.nextWhisperIndex(lastWhisper, available.size)
         lastWhisper = firstIndex
-        val pan = if (random.nextBoolean()) -.34f else .34f
-        val level = random.nextFloat() * .18f + .72f
+        // Distant voices: band-limited, softly reverberant at import time and
+        // grouped off-centre; avoid the old suddenly loud foreground voice.
+        val pan = if (random.nextBoolean()) -.30f else .30f
+        val level = random.nextFloat() * .15f + .54f
         if (!playOnce(available[firstIndex], level, pan)) return
         if (!scheduler.shouldOverlapWhispers() || available.size < 2) return
         val secondIndex = scheduler.nextWhisperIndex(firstIndex, available.size)
@@ -474,7 +476,7 @@ class SalonAudio(
                 pending.remove(this)
                 if (running && scene == Scene.SALON && token == generation &&
                     settings.conversations > 0f && transientCount < 3) {
-                    playOnce(available[secondIndex], level * .64f, -pan)
+                    playOnce(available[secondIndex], level * .60f, -pan)
                 }
             }
         }
@@ -484,9 +486,11 @@ class SalonAudio(
 
     /** A brief believable incident, not independent randomly overlapping noises. */
     private fun playRoomMovement() {
-        if (random.nextInt(10) == 0 && playOnce("salon_door")) return
-        if (!playOnce("salon_chair")) {
-            playOnce("salon_footsteps")
+        val pan = if (random.nextBoolean()) -.22f else .22f
+        if (random.nextInt(10) == 0 &&
+            playOnce("salon_door", level = .52f, pan = pan)) return
+        if (!playOnce("salon_chair", level = .57f, pan = pan)) {
+            playOnce("salon_footsteps", level = .63f, pan = -pan)
             return
         }
         if (!hasRecording("salon_footsteps") || random.nextInt(4) == 0) return
@@ -495,7 +499,7 @@ class SalonAudio(
             override fun run() {
                 pending.remove(this)
                 if (running && session == generation && scene == Scene.SALON)
-                    playOnce("salon_footsteps")
+                    playOnce("salon_footsteps", level = .63f, pan = -pan)
             }
         }
         pending.add(follow)
@@ -510,7 +514,9 @@ class SalonAudio(
                 if (!running) return
                 if (scene == Scene.SALON && transientCount < 3) {
                     when (event) {
-                        AmbienceScheduler.Event.GLASSWARE -> playOnce("salon_glassware")
+                        AmbienceScheduler.Event.GLASSWARE ->
+                            playOnce("salon_glassware", level = .67f,
+                                pan = if (random.nextBoolean()) -.25f else .25f)
                         AmbienceScheduler.Event.CONVERSATION -> Unit // scheduled separately
                         AmbienceScheduler.Event.DOOR -> playRoomMovement()
                     }
