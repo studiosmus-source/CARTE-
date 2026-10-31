@@ -72,7 +72,7 @@ class ScopaScreen(
         val tableContent = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(22), dp(28), dp(22), dp(28))
+            setPadding(dp(16), dp(8), dp(16), dp(8))
         }
         tableContent.addView(label(
             when {
@@ -86,16 +86,17 @@ class ScopaScreen(
                 setPadding(dp(8), dp(30), dp(8), dp(30))
             })
         } else {
-            tableContent.addView(renderer.cardRow(match.table))
+            tableContent.addView(renderer.tableCards(match.table),
+                LinearLayout.LayoutParams(-1, dp(188)))
         }
         felt.addView(tableContent, android.widget.FrameLayout.LayoutParams(
             -1, -1, Gravity.CENTER))
         if (session.collecting) {
-            val captured = renderer.cardRow(
+            val captured = renderer.tableCards(
                 session.collectedCards, collectTo = session.captureWinner == 1
             )
             felt.addView(captured, android.widget.FrameLayout.LayoutParams(
-                -1, -2, Gravity.CENTER))
+                -1, dp(188), Gravity.CENTER))
         }
         session.preview?.let { card ->
             val moving = renderer.cardTile(card)
