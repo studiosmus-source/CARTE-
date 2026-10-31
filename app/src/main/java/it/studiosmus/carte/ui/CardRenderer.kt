@@ -156,6 +156,12 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
                 text(canvas, card.suit.name, w / 2f, h - 27f * unit, 9f * unit, ink, true)
             }
         }.apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.rgb(247, 237, 215))
+                cornerRadius = dp(5).toFloat()
+            }
+            clipToOutline = true
+            elevation = dp(5).toFloat()
             contentDescription = "${card.rank.number} ${card.suit.name}"
             isEnabled = enabled || action == null
             if (action != null) {
@@ -169,7 +175,9 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(2), dp(6), dp(2), dp(6))
+            clipChildren = false
+            clipToPadding = false
+            setPadding(dp(8), dp(10), dp(8), dp(10))
         }
         cards.forEach { card ->
             val tile = if (action == null) cardTile(card) else cardTile(card, true) { action(card) }
@@ -180,6 +188,8 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
         }
         return HorizontalScrollView(context).apply {
             isHorizontalScrollBarEnabled = false
+            clipChildren = false
+            clipToPadding = false
             // A short hand fits on a phone without forcing the player to scroll.
             isFillViewport = true
             addView(row)
@@ -190,7 +200,9 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(4), dp(8), dp(4), dp(8))
+            clipChildren = false
+            clipToPadding = false
+            setPadding(dp(8), dp(10), dp(8), dp(10))
         }
         repeat(count) {
             val back = object : View(context) {
@@ -224,7 +236,15 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
                     paint.textSize = dp(20).toFloat()
                     canvas.drawText("✦", w / 2f, h / 2f + dp(7), paint)
                 }
-            }.apply { contentDescription = "Carta coperta dell'avversario" }
+            }.apply {
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.rgb(95, 31, 37))
+                    cornerRadius = dp(6).toFloat()
+                }
+                clipToOutline = true
+                elevation = dp(4).toFloat()
+                contentDescription = "Carta coperta dell'avversario"
+            }
             val params = LinearLayout.LayoutParams(dp(72), dp(98))
             params.setMargins(dp(4), 0, dp(4), 0)
             row.addView(back, params)
