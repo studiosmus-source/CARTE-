@@ -33,6 +33,51 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
         } catch (_: java.io.IOException) { null }
     }
 
+    /**
+     * Stable paper patina on the legacy deck as well. The original artwork is
+     * unchanged; worn edges and fibres remain visible on a small phone screen.
+     */
+    private fun drawWornFinish(canvas: android.graphics.Canvas, w: Float, h: Float, card: Card) {
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        p.style = android.graphics.Paint.Style.FILL
+        p.color = Color.argb(19, 166, 105, 45)
+        canvas.drawRect(0f, 0f, w, h, p)
+        val radius = w * .67f
+        for ((cx, cy) in listOf(0f to 0f, w to 0f, 0f to h, w to h)) {
+            p.shader = android.graphics.RadialGradient(cx, cy, radius,
+                intArrayOf(Color.argb(58, 112, 72, 42), Color.TRANSPARENT),
+                null, android.graphics.Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, w, h, p)
+        }
+        p.shader = null
+        val random = kotlin.random.Random(card.id.hashCode())
+        repeat(175) {
+            val x = random.nextFloat() * w
+            val y = random.nextFloat() * h
+            val size = (if (it % 9 == 0) 1.75f else .6f) * w / 92f
+            p.color = if (it % 4 == 0) Color.argb(45, 101, 75, 51)
+                else Color.argb(31, 208, 162, 99)
+            canvas.drawCircle(x, y, size * (.5f + random.nextFloat()), p)
+        }
+        p.style = android.graphics.Paint.Style.STROKE
+        repeat(30) {
+            val x = random.nextFloat() * w
+            val y = random.nextFloat() * h
+            val depth = w * (.009f + random.nextFloat() * .021f)
+            p.strokeWidth = w * .007f
+            p.color = if (it % 3 == 0) Color.argb(91, 136, 91, 53)
+                else Color.argb(67, 251, 235, 197)
+            canvas.drawLine(x, if (it % 2 == 0) 0f else h,
+                x + w * .008f, if (it % 2 == 0) depth else h - depth, p)
+            canvas.drawLine(if (it % 2 == 0) 0f else w, y,
+                if (it % 2 == 0) depth else w - depth, y + h * .004f, p)
+        }
+        p.strokeWidth = w * .009f
+        p.color = Color.argb(75, 98, 62, 37)
+        canvas.drawRoundRect(w * .005f, h * .005f,
+            w * .995f, h * .995f, w * .045f, w * .045f, p)
+    }
+
     // HD original artwork is preferred; the painted fallback is used only if an asset is missing.
     fun cardTile(card: Card, enabled: Boolean = false, action: (() -> Unit)? = null): View =
         object : View(context) {
@@ -116,6 +161,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
                     paint.isFilterBitmap = true
                     canvas.drawBitmap(bitmap, null,
                         android.graphics.RectF(0f, 0f, w, h), paint)
+                    drawWornFinish(canvas, w, h, card)
                     return
                 }
                 val unit = w / 92f
