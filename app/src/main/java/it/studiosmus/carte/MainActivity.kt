@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
 import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.audio.SalonAudio
 import it.studiosmus.carte.core.ScopaGame
@@ -97,6 +98,25 @@ class MainActivity : Activity() {
             .putFloat("cards", ambience.cards)
             .apply()
         applyAmbience()
+    }
+
+    // Apply system bar safe areas to every screen without accumulating padding
+    // when Android redispatches insets after configuration changes.
+    private fun installScreen(view: View) {
+        val left = view.paddingLeft
+        val top = view.paddingTop
+        val right = view.paddingRight
+        val bottom = view.paddingBottom
+        view.setOnApplyWindowInsetsListener { target, insets ->
+            val bars = insets.getInsets(
+                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
+            )
+            target.setPadding(left + bars.left, top + bars.top,
+                right + bars.right, bottom + bars.bottom)
+            insets
+        }
+        setContentView(view)
+        view.requestApplyInsets()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -390,7 +410,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, dp(66)))
         root.addView(label("SOLO OFFLINE  •  NESSUN ACCOUNT", 11f, gold))
         root.addView(label("Scopa e Briscola · Gioca offline", 12f, ivory))
-        setContentView(scroll)
+        installScreen(scroll)
     }
 
     private fun showAudioSettings(returnToBriscola: Boolean = false) {
@@ -459,7 +479,7 @@ class MainActivity : Activity() {
             setPadding(dp(10), dp(12), dp(10), dp(18))
         })
         root.addView(label("Camino: generato offline. Effetti delle carte: non ancora inclusi. I cursori degli audio mancanti salvano le preferenze, ma non producono suono.", 13f, gold))
-        setContentView(scroll)
+        installScreen(scroll)
     }
 
     private fun gameButton(root: LinearLayout, title: String, subtitle: String) {
@@ -583,7 +603,7 @@ class MainActivity : Activity() {
             root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
             root.addView(cardRow(match.hands[0]) { card -> if (match.turn == 0) playScopaCard(card) })
         }
-        setContentView(scroll)
+        installScreen(scroll)
     }
 
     private fun startBriscola() {
@@ -755,7 +775,7 @@ class MainActivity : Activity() {
                 if (match.turn == 0 && !trickResolving) playBriscola(0, card)
             })
         }
-        setContentView(root)
+        installScreen(root)
     }
 
 }
