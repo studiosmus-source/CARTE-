@@ -11,11 +11,13 @@ object TrickLayout {
         if (lead != null) {
             table.addView(lead)
             if (collecting) CardMotion.collect(lead, winner == 1, dp)
-            else CardMotion.reveal(lead, playedBy == 1, dp)
+            else if (reply == null) CardMotion.reveal(lead, playedBy == 1, dp)
+            // The lead is already resting on the table. Never animate it
+            // again when a second card is played.
         }
         if (reply != null) {
             table.addView(reply)
-            if (collecting) CardMotion.collect(reply, winner == 1, dp)
+            if (collecting) CardMotion.collect(reply, winner == 1, dp, 45L)
             else CardMotion.reveal(reply, playedBy == 1, dp)
         }
         var previousWidth = -1
