@@ -50,10 +50,12 @@ object CardMotion {
             val targetAt = IntArray(2)
             stock.getLocationOnScreen(stockAt)
             card.getLocationOnScreen(targetAt)
-            val dx = stockAt[0] + stock.width / 2f -
-                targetAt[0] - card.width / 2f
-            val dy = stockAt[1] + stock.height / 2f -
-                targetAt[1] - card.height / 2f
+            val (dx, dy) = CardMotionGeometry.stockToCard(
+                stockAt[0].toFloat(), stockAt[1].toFloat(),
+                stock.width.toFloat(), stock.height.toFloat(),
+                targetAt[0].toFloat(), targetAt[1].toFloat(),
+                card.width.toFloat(), card.height.toFloat()
+            )
             slide(card, dx, dy, if (dx > 0) 10f else -10f, 390L, delay)
         }
     }
