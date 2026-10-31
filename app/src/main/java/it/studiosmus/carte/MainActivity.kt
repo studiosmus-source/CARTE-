@@ -22,9 +22,9 @@ import android.widget.TextView
  * Uses Android platform widgets without additional UI dependencies.
  */
 class MainActivity : Activity() {
-    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession { renderBriscola() } }
+    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession({ renderBriscola() }, { soundscape.playCard(it) }) }
     private val game get() = briscolaSession.game
-    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession { renderScopa() } }
+    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ renderScopa() }, { soundscape.playCard(it) }) }
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
     private var fireplaceEnabled = false
@@ -59,10 +59,8 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        if (fireplaceEnabled) {
-            soundscape.start()
-            salonAudio.start()
-        }
+        soundscape.setFireplaceEnabled(fireplaceEnabled)
+        if (fireplaceEnabled) salonAudio.start()
     }
 
     override fun onDestroy() {
@@ -75,6 +73,8 @@ class MainActivity : Activity() {
 
     private fun applyAmbience() {
         soundscape.setVolume(Soundscape.Channel.FIREPLACE, ambience.fireplace)
+        soundscape.setVolume(Soundscape.Channel.CARDS, ambience.cards)
+        soundscape.setFireplaceEnabled(fireplaceEnabled)
         salonAudio.configure(ambience)
     }
 
@@ -167,10 +167,10 @@ class MainActivity : Activity() {
                 fireplaceEnabled = !fireplaceEnabled
                 saveAmbience()
                 if (fireplaceEnabled) {
-                    soundscape.start()
+                    soundscape.setFireplaceEnabled(true)
                     salonAudio.start()
                 } else {
-                    soundscape.stop()
+                    soundscape.setFireplaceEnabled(false)
                     salonAudio.stop()
                 }
                 text = if (fireplaceEnabled) "CAMINO ACCESO - TOCCA PER SPEGNERE"
@@ -226,7 +226,7 @@ class MainActivity : Activity() {
                 })
             })
         }
-        root.addView(Button(this).apply { text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"; setOnClickListener { fireplaceEnabled = !fireplaceEnabled; saveAmbience(); if (fireplaceEnabled) { soundscape.start(); salonAudio.start() } else { soundscape.stop(); salonAudio.stop() }; text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO" } })
+        root.addView(Button(this).apply { text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"; setOnClickListener { fireplaceEnabled = !fireplaceEnabled; saveAmbience(); if (fireplaceEnabled) { soundscape.setFireplaceEnabled(true); salonAudio.start() } else { soundscape.setFireplaceEnabled(false); salonAudio.stop() }; text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO" } })
         slider("Camino", ambience.fireplace) { ambience = ambience.copy(fireplace = it) }
         slider("Jazz", ambience.jazz) { ambience = ambience.copy(jazz = it) }
         slider("Conversazioni", ambience.conversations) { ambience = ambience.copy(conversations = it) }
@@ -253,7 +253,7 @@ class MainActivity : Activity() {
         root.addView(label(audioStatus, 14f, ivory).apply {
             setPadding(dp(10), dp(12), dp(10), dp(18))
         })
-        root.addView(label("Camino: generato offline. Effetti delle carte: non ancora inclusi. I cursori degli audio mancanti salvano le preferenze, ma non producono suono.", 13f, gold))
+        root.addView(label("Camino e carte: effetti offline indipendenti. Le registrazioni ambientali non incluse restano silenziose; le preferenze vengono salvate.", 13f, gold))
         installScreen(scroll)
     }
 
