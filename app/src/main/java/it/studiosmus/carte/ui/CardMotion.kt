@@ -11,10 +11,10 @@ object CardMotion {
             300L)
     }
 
-    fun deal(card: View?, fromAbove: Boolean, dp: (Int) -> Int) {
+    fun deal(card: View?, fromAbove: Boolean, dp: (Int) -> Int, delay: Long = 0L) {
         travel(card, if (fromAbove) dp(44).toFloat() else -dp(44).toFloat(),
             if (fromAbove) -dp(140).toFloat() else -dp(65).toFloat(),
-            460L)
+            460L, delay)
     }
 
     fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int) {
@@ -29,7 +29,7 @@ object CardMotion {
             .setDuration(320L).start()
     }
 
-    private fun travel(card: View?, x: Float, y: Float, duration: Long) {
+    private fun travel(card: View?, x: Float, y: Float, duration: Long, delay: Long = 0L) {
         if (card == null) return
         card.animate().cancel()
         card.alpha = 0.35f
@@ -41,6 +41,7 @@ object CardMotion {
             .translationX(0f).translationY(0f)
             .alpha(1f).scaleX(1f).scaleY(1f)
             .setInterpolator(AccelerateDecelerateInterpolator())
+            .setStartDelay(delay)
             .setDuration(duration).start()
     }
 }
