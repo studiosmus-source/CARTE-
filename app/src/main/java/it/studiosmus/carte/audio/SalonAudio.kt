@@ -27,6 +27,7 @@ class SalonAudio(
     private val names = mutableMapOf<MediaPlayer, String>()
     private val pending = mutableListOf<Runnable>()
     private var music: MediaPlayer? = null
+    private var previewPlayer: MediaPlayer? = null
     private var musicEqualizer: Equalizer? = null
     private var musicPositionMs = 0
     private var musicHasStarted = false
@@ -63,7 +64,22 @@ class SalonAudio(
 
     /** Transitions affect all audible layers, not the player's seek position. */
     fun enterScene(next: Scene, durationMs: Long = 1800L) {
+        val previous = scene
         scene = next
+        // The room should be perceptibly inhabited soon after entering, but
+        // never overlay the initial cinematic fade or force constant chatter.
+        if (next == Scene.SALON && previous != Scene.SALON && running) {
+            val token = generation
+            val firstMurmur = object : Runnable {
+                override fun run() {
+                    pending.remove(this)
+                    if (running && token == generation && scene == Scene.SALON &&
+                        transientCount == 0) playOnce("salon_conversation")
+                }
+            }
+            pending.add(firstMurmur)
+            handler.postDelayed(firstMurmur, random.nextLong(7500L, 14500L))
+        }
         transition?.let(handler::removeCallbacks)
         transition = null
         val fromMusic = musicPerspective
@@ -116,6 +132,7 @@ class SalonAudio(
 
     fun stop() {
         if (!running) return
+        stopPreview()
         running = false
         generation++
         transition?.let(handler::removeCallbacks)
@@ -153,6 +170,49 @@ class SalonAudio(
         players.add(player)
         names[player] = "salon_jazz"
         try { player.start() } catch (_: IllegalStateException) { dispose(player) }
+    }
+
+    /**
+     * Settings-only isolated playback. A one-shot sample is loud enough to
+     * identify, while the jazz is ducked. It never changes persisted sliders.
+     * The fireplace and conversations previews stop after a few seconds.
+     */
+    fun previewSample(name: String): Boolean {
+        stopPreview()
+        if (!running || !hasRecording(name)) return false
+        val p = createPlayer(name) ?: return false
+        previewPlayer = p
+        p.setVolume(0.64f, 0.64f)
+        p.setOnCompletionListener { if (previewPlayer === it) stopPreview() }
+        p.setOnErrorListener { broken, _, _ ->
+            if (previewPlayer === broken) stopPreview()
+            true
+        }
+        val end = object : Runnable {
+            override fun run() {
+                pending.remove(this)
+                if (previewPlayer === p) stopPreview()
+            }
+        }
+        pending.add(end)
+        handler.postDelayed(end, when (name) {
+            "salon_fireplace" -> 6500L
+            "salon_conversation" -> 9500L
+            else -> 7000L
+        })
+        refreshMix()
+        try { p.start() } catch (_: IllegalStateException) {
+            stopPreview()
+            return false
+        }
+        return true
+    }
+
+    private fun stopPreview() {
+        val p = previewPlayer ?: return
+        previewPlayer = null
+        try { p.release() } catch (_: RuntimeException) { }
+        refreshMix()
     }
 
     private fun createPlayer(name: String): MediaPlayer? {
@@ -207,7 +267,8 @@ class SalonAudio(
     private fun refreshMix() {
         updateMusicDistance()
         players.toList().forEach { player ->
-            val gain = volumeFor(names[player] ?: "")
+            val gain = volumeFor(names[player] ?: "") *
+                if (previewPlayer != null && player === music) 0.08f else 1f
             try { player.setVolume(gain, gain) } catch (_: IllegalStateException) { }
         }
     }
