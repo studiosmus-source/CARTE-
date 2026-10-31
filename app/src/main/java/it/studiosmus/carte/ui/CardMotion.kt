@@ -27,6 +27,37 @@ object CardMotion {
             if (fromAbove) 9f else -8f, 380L, delay)
     }
 
+    /**
+     * Cards really leave the on-screen stock and land in the correct hand.
+     * Both coordinates are converted from screen-space AFTER layout, rather
+     * than guessing based on phone size or density.
+     */
+    fun dealFromStock(card: View?, stock: View?, dp: (Int) -> Int,
+                      delay: Long = 0L) {
+        if (card == null) return
+        if (stock == null) {
+            deal(card, false, dp, delay)
+            return
+        }
+        card.alpha = 0f
+        card.post {
+            if (!card.isAttachedToWindow || !stock.isAttachedToWindow ||
+                card.width <= 0 || stock.width <= 0) {
+                card.alpha = 1f
+                return@post
+            }
+            val stockAt = IntArray(2)
+            val targetAt = IntArray(2)
+            stock.getLocationOnScreen(stockAt)
+            card.getLocationOnScreen(targetAt)
+            val dx = stockAt[0] + stock.width / 2f -
+                targetAt[0] - card.width / 2f
+            val dy = stockAt[1] + stock.height / 2f -
+                targetAt[1] - card.height / 2f
+            slide(card, dx, dy, if (dx > 0) 10f else -10f, 390L, delay)
+        }
+    }
+
     fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int) =
         collect(card, toComputer, dp, 0L)
 
