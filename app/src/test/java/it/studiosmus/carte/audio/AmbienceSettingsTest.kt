@@ -41,4 +41,39 @@ class AmbienceSettingsTest {
             )
         }
     }
+    @Test fun whisperedScenesAreSparseAndDoNotStartImmediately() {
+        val scheduler = AmbienceScheduler(Random(713))
+        repeat(1_000) {
+            assertTrue(scheduler.firstWhisperDelayMs() in 15_000L..31_000L)
+            assertTrue(scheduler.nextWhisperDelayMs() in 24_000L..66_000L)
+            assertTrue(scheduler.overlapWhisperDelayMs() in 450L..1_400L)
+        }
+    }
+
+    @Test fun whisperExcerptsNeverRepeatConsecutivelyAndOverlapIsOccasional() {
+        val scheduler = AmbienceScheduler(Random(112))
+        var previous = -1
+        val variants = mutableSetOf<Int>()
+        repeat(2_000) {
+            val next = scheduler.nextWhisperIndex(previous, 4)
+            assertTrue(next in 0..3)
+            if (previous >= 0) assertTrue(previous != next)
+            variants.add(next)
+            previous = next
+        }
+        assertEquals(setOf(0, 1, 2, 3), variants)
+        val overlaps = (0 until 1_000).count { scheduler.shouldOverlapWhispers() }
+        assertTrue("Overlaps should be occasional, not constant", overlaps in 100..300)
+    }
+
+    @Test fun whisperTimingsAreSeedReproducible() {
+        val a = AmbienceScheduler(Random(56))
+        val b = AmbienceScheduler(Random(56))
+        repeat(100) {
+            assertEquals(a.firstWhisperDelayMs(), b.firstWhisperDelayMs())
+            assertEquals(a.nextWhisperDelayMs(), b.nextWhisperDelayMs())
+            assertEquals(a.shouldOverlapWhispers(), b.shouldOverlapWhispers())
+        }
+    }
+
 }
