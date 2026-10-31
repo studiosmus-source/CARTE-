@@ -48,6 +48,13 @@ CLIPS = {
     "salon_card_collect": ("cards", 12.06, 0.39, "highpass=f=140,lowpass=f=10500,loudnorm=I=-18:TP=-3:LRA=9,afade=t=out:st=0.31:d=0.08"),
     "salon_fireplace": ("fire", 0.0, 70.0, "highpass=f=90,lowpass=f=2800,afftdn=nr=12:nf=-40,loudnorm=I=-24:TP=-5:LRA=15"),
     "salon_conversation": ("voices", 0.0, 19.0, "highpass=f=150,lowpass=f=4000,loudnorm=I=-22:TP=-4:LRA=12"),
+    # Four genuine, non-identical sections of the verified conversation.
+    # Fade both ends to prevent cuts; occasional playback overlap happens in
+    # SalonAudio.kt, not by mixing permanently into a noisy ambient loop.
+    "salon_whisper_01": ("voices", 0.8, 3.6, "highpass=f=180,lowpass=f=3800,loudnorm=I=-23:TP=-5:LRA=10,afade=t=in:st=0:d=0.20,afade=t=out:st=3.15:d=0.45"),
+    "salon_whisper_02": ("voices", 4.9, 4.0, "highpass=f=180,lowpass=f=3800,loudnorm=I=-23:TP=-5:LRA=10,afade=t=in:st=0:d=0.22,afade=t=out:st=3.5:d=0.5"),
+    "salon_whisper_03": ("voices", 9.5, 3.8, "highpass=f=180,lowpass=f=3800,loudnorm=I=-23:TP=-5:LRA=10,afade=t=in:st=0:d=0.20,afade=t=out:st=3.3:d=0.5"),
+    "salon_whisper_04": ("voices", 14.0, 4.1, "highpass=f=180,lowpass=f=3800,loudnorm=I=-23:TP=-5:LRA=10,afade=t=in:st=0:d=0.22,afade=t=out:st=3.55:d=0.55"),
     "salon_glassware": ("glass", 0.0, 1.26, "highpass=f=130,loudnorm=I=-19:TP=-4:LRA=10"),
     "salon_chair": ("chair", 0.0, 4.0, "highpass=f=100,lowpass=f=5500,loudnorm=I=-20:TP=-4:LRA=10"),
     "salon_footsteps": ("steps", 2.0, 4.0, "highpass=f=95,lowpass=f=5100,loudnorm=I=-19:TP=-4:LRA=10"),
