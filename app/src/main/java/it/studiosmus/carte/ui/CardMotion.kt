@@ -17,7 +17,7 @@ object CardMotion {
             460L, delay)
     }
 
-    fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int) {
+    fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int, delay: Long = 0L) {
         if (card == null) return
         card.animate().cancel()
         card.animate()
@@ -26,6 +26,7 @@ object CardMotion {
             .alpha(0f)
             .scaleX(.88f).scaleY(.88f)
             .setInterpolator(AccelerateDecelerateInterpolator())
+            .setStartDelay(delay)
             .setDuration(320L).start()
     }
 
