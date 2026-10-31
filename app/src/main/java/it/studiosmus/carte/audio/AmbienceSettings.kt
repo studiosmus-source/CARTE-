@@ -12,6 +12,10 @@ data class AmbienceSettings(
     val doors: Float = 0.16f,
     val cards: Float = 0.55f
 ) {
+    /** Gain shared by the old preview and every short in-game whisper excerpt. */
+    fun conversationGain(roomPerspective: Float): Float =
+        conversations * 0.52f * roomPerspective.coerceIn(0f, 1f)
+
     fun normalized(): AmbienceSettings = copy(
         fireplace = fireplace.coerceIn(0f, 1f),
         jazz = jazz.coerceIn(0f, 1f),
