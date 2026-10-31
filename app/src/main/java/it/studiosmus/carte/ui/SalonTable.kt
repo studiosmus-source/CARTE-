@@ -9,9 +9,11 @@ import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
+import android.os.SystemClock
 import android.view.View
 import android.widget.FrameLayout
 import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
@@ -24,7 +26,8 @@ import kotlin.random.Random
  * This view is only the background. Game cards, stock and touch targets remain
  * independent children of the FrameLayout.
  */
-class SalonTable(context: Context) : FrameLayout(context) {
+class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout(context) {
+    private val fireAmount = fireplaceIntensity.coerceIn(0f, 1f)
     private val density = resources.displayMetrics.density
     private fun dp(value: Float) = value * density
 
@@ -234,9 +237,54 @@ class SalonTable(context: Context) : FrameLayout(context) {
         }
     }
 
+    /**
+     * The off-screen fireplace lives to the lower left of the table. Its
+     * orange spill is intentionally almost imperceptible, with low-frequency
+     * irregular variation rather than fast blinking. This is a separate small
+     * transparent layer: the expensive wood/felt texture is never re-painted
+     * on every animation tick. Child card hit targets remain above the light.
+     */
+    private val fireplaceLight = object : View(context) {
+        private val lightPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            if (fireAmount <= 0f || width <= 0 || height <= 0) return
+            val w = width.toFloat()
+            val h = height.toFloat()
+            val seconds = SystemClock.uptimeMillis() / 1000f
+            val phase = (.87f + .075f * sin(seconds * 2.5f) +
+                .035f * sin(seconds * 6.3f) +
+                .020f * sin(seconds * 1.2f)).coerceIn(.74f, 1f)
+            val strength = (.34f + fireAmount * .66f) * phase
+            val originX = -w * .07f
+            val originY = h * .65f
+            val radius = max(w * 1.02f, h * .56f)
+            val outer = RectF(dp(2f), dp(12f), w - dp(2f), h - dp(12f))
+            canvas.save()
+            canvas.clipPath(octagon(outer, outer.width() * .235f, outer.height() * .175f))
+            lightPaint.shader = RadialGradient(originX, originY, radius,
+                intArrayOf(
+                    Color.argb((24f * strength).toInt(), 255, 146, 62),
+                    Color.argb((10f * strength).toInt(), 238, 127, 51),
+                    Color.TRANSPARENT
+                ),
+                floatArrayOf(0f, .40f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, w, h, lightPaint)
+            lightPaint.shader = null
+            canvas.restore()
+            if (isAttachedToWindow && visibility == VISIBLE) postInvalidateDelayed(140L)
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            if (fireAmount > 0f) invalidate()
+        }
+    }
+
     init {
         clipChildren = false
         clipToPadding = false
         addView(surface, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(fireplaceLight, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 }
