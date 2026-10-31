@@ -38,34 +38,42 @@ object CardMotion {
         if (card == null) return
         if (stock == null) {
             deal(card, false, dp, delay)
-            return
-        }
+        } else flyFromView(card, stock, duration = 390L, delay = delay)
+    }
+
+    /** The played card begins exactly at its former position in the hand. */
+    fun playFromHand(card: View?, handCard: View?) {
+        if (card == null || handCard == null) return
+        flyFromView(card, handCard, duration = 205L, delay = 0L)
+    }
+
+    private fun flyFromView(card: View, origin: View,
+                            duration: Long, delay: Long) {
         card.alpha = 0f
-        // A normal post() may run before the first Android layout and thus
-        // find width=0, leaving the card motionless. PreDraw is the first
-        // guaranteed point when both target hand and source deck are measured.
         val observer = card.viewTreeObserver
         observer.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
                 if (card.width <= 0 || card.height <= 0 ||
-                    stock.width <= 0 || stock.height <= 0) return true
+                    origin.width <= 0 || origin.height <= 0) return true
                 if (card.viewTreeObserver.isAlive)
                     card.viewTreeObserver.removeOnPreDrawListener(this)
-                if (!card.isAttachedToWindow || !stock.isAttachedToWindow) {
+                if (!card.isAttachedToWindow || !origin.isAttachedToWindow) {
                     card.alpha = 1f
                     return true
                 }
-                val stockAt = IntArray(2)
+                val originAt = IntArray(2)
                 val targetAt = IntArray(2)
-                stock.getLocationOnScreen(stockAt)
+                origin.getLocationOnScreen(originAt)
                 card.getLocationOnScreen(targetAt)
                 val (dx, dy) = CardMotionGeometry.stockToCard(
-                    stockAt[0].toFloat(), stockAt[1].toFloat(),
-                    stock.width.toFloat(), stock.height.toFloat(),
+                    originAt[0].toFloat(), originAt[1].toFloat(),
+                    origin.width.toFloat(), origin.height.toFloat(),
                     targetAt[0].toFloat(), targetAt[1].toFloat(),
                     card.width.toFloat(), card.height.toFloat()
                 )
-                slide(card, dx, dy, if (dx > 0) 10f else -10f, 390L, delay)
+                slide(card, dx, dy, if (dx > 0f) 7f else -7f,
+                    duration, delay)
+                if (card is FlipCardView) card.reveal(afterMs = duration - 35L)
                 return true
             }
         })
