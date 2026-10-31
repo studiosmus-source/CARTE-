@@ -119,11 +119,21 @@ class ScopaScreen(
             felt.addView(captured, android.widget.FrameLayout.LayoutParams(
                 -1, dp(218), Gravity.CENTER))
         }
-        session.preview?.let { card ->
-            val moving = renderer.playedCard(card, computer = match.turn == 1)
-            felt.addView(moving, android.widget.FrameLayout.LayoutParams(
-                dp(65), dp(108), Gravity.CENTER))
-            CardMotion.reveal(moving, match.turn == 1) { dp(it) }
+        val flyingCard = session.preview?.let { card ->
+            renderer.playedCard(card, computer = match.turn == 1).also {
+                felt.addView(it, android.widget.FrameLayout.LayoutParams(
+                    dp(65), dp(108), Gravity.CENTER))
+            }
+        }
+        if (flyingCard != null && match.turn == 1) {
+            val sourceIndex = match.hands[1].indexOf(session.preview)
+            val source = (opponentBackRow as? LinearLayout)
+                ?.takeIf { sourceIndex in 0 until it.childCount }
+                ?.getChildAt(sourceIndex)
+            if (source != null) {
+                source.alpha = 0f
+                CardMotion.playFromHand(flyingCard, source)
+            } else CardMotion.reveal(flyingCard, true, ::dp)
         }
         session.scopaFlashPlayer?.let { who ->
             felt.addView(label(
@@ -165,6 +175,17 @@ class ScopaScreen(
             val playerRow = renderer.cardRow(match.hands[0],
                 { card -> if (match.turn == 0 && !session.busy) onPlay(card) })
             root.addView(playerRow)
+            if (flyingCard != null && match.turn == 0) {
+                val sourceIndex = match.hands[0].indexOf(session.preview)
+                val source = (playerRow as? android.widget.HorizontalScrollView)
+                    ?.getChildAt(0)?.let { it as? LinearLayout }
+                    ?.takeIf { sourceIndex in 0 until it.childCount }
+                    ?.getChildAt(sourceIndex)
+                if (source != null) {
+                    source.alpha = 0f
+                    CardMotion.playFromHand(flyingCard, source)
+                } else CardMotion.reveal(flyingCard, false, ::dp)
+            }
             if (session.dealing && stockView != null) {
                 (playerRow as? android.widget.HorizontalScrollView)
                     ?.getChildAt(0)?.let { hand ->
