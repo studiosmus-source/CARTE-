@@ -65,7 +65,9 @@ class ScopaScreen(
         root.addView(label("SCOPE · TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 15f, gold, true))
         root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
-        root.addView(renderer.cardBackRow(match.hands[1].size))
+        root.addView(renderer.cardBackRow(match.hands[1].size).apply {
+            if (session.dealing) CardMotion.reveal(this, true) { dp(it) }
+        })
         val felt = SalonTable(context).apply {
             minimumHeight = dp(235)
         }
@@ -74,7 +76,13 @@ class ScopaScreen(
             gravity = Gravity.CENTER
             setPadding(dp(22), dp(28), dp(22), dp(28))
         }
-        tableContent.addView(label("SUL TAVOLO", 12f, gold, true))
+        tableContent.addView(label(
+            when {
+                session.dealing -> "DISTRIBUZIONE"
+                session.collecting -> "RACCOLTA DELLA PRESA"
+                session.preview != null -> "CARTA IN GIOCO"
+                else -> "SUL TAVOLO"
+            }, 12f, gold, true))
         if (match.table.isEmpty()) {
             tableContent.addView(label("Tavolo libero", 15f, ivory).apply {
                 setPadding(dp(8), dp(30), dp(8), dp(30))
@@ -82,10 +90,20 @@ class ScopaScreen(
         } else {
             tableContent.addView(renderer.cardRow(match.table))
         }
+        session.preview?.let { card ->
+            tableContent.addView(renderer.cardTile(card).apply {
+                CardMotion.reveal(this, match.turn == 1) { dp(it) }
+            }, LinearLayout.LayoutParams(dp(65), dp(108)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+            })
+        }
         felt.addView(tableContent, android.widget.FrameLayout.LayoutParams(
             -1, -1, Gravity.CENTER))
         root.addView(felt, LinearLayout.LayoutParams(-1, dp(235)))
-        root.addView(label(match.lastMove, 13f, gold))
+        root.addView(label(
+            if (session.dealing) "Si distribuiscono le carte…"
+            else if (session.collecting) "Si raccolgono le carte…"
+            else match.lastMove, 13f, gold))
         if (match.finished) {
             val score = match.score()
             val outcome = when {
@@ -103,7 +121,7 @@ class ScopaScreen(
             })
         } else {
             root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
-            root.addView(renderer.cardRow(match.hands[0]) { card -> if (match.turn == 0) onPlay(card) })
+            root.addView(renderer.cardRow(match.hands[0]) { card -> if (match.turn == 0 && !session.busy) onPlay(card) })
         }
         return scroll
     }
