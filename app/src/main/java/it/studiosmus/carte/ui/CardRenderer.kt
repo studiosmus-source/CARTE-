@@ -176,7 +176,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
      * The same layout is used for brief collection animations.
      */
     fun tableCards(cards: List<Card>, collectTo: Boolean? = null): View {
-        val tiles = cards.map(::cardTile)
+        val tiles = cards.map { cardTile(it) }
         return AdaptiveCardGrid(context, tiles).apply {
             if (collectTo != null) {
                 tiles.forEachIndexed { index, tile ->
