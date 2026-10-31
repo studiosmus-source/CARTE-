@@ -23,34 +23,34 @@ SPATIAL = {
     "salon_whisper_01": ("voices", 0.8, 3.6,
         "highpass=f=185,lowpass=f=2400,"
         "acompressor=threshold=-25dB:ratio=1.7:attack=30:release=350,"
-        "aecho=0.78:0.42:62|113:0.16|0.09,"
+        "loudnorm=I=-25:TP=-7:LRA=10,aecho=0.78:0.42:62|113:0.16|0.09,"
         "afade=t=in:st=0:d=0.65,afade=t=out:st=2.95:d=0.65"),
     "salon_whisper_02": ("voices", 4.9, 4.0,
         "highpass=f=185,lowpass=f=2350,"
         "acompressor=threshold=-25dB:ratio=1.7:attack=30:release=350,"
-        "aecho=0.78:0.42:68|127:0.16|0.09,"
+        "loudnorm=I=-25:TP=-7:LRA=10,aecho=0.78:0.42:68|127:0.16|0.09,"
         "afade=t=in:st=0:d=0.72,afade=t=out:st=3.30:d=0.70"),
     "salon_whisper_03": ("voices", 9.5, 3.8,
         "highpass=f=185,lowpass=f=2500,"
         "acompressor=threshold=-25dB:ratio=1.7:attack=30:release=350,"
-        "aecho=0.78:0.42:76|137:0.15|0.08,"
+        "loudnorm=I=-25:TP=-7:LRA=10,aecho=0.78:0.42:76|137:0.15|0.08,"
         "afade=t=in:st=0:d=0.70,afade=t=out:st=3.10:d=0.70"),
     "salon_whisper_04": ("voices", 14.0, 4.1,
         "highpass=f=185,lowpass=f=2250,"
         "acompressor=threshold=-25dB:ratio=1.7:attack=30:release=350,"
-        "aecho=0.78:0.42:85|142:0.16|0.09,"
+        "loudnorm=I=-25:TP=-7:LRA=10,aecho=0.78:0.42:85|142:0.16|0.09,"
         "afade=t=in:st=0:d=0.72,afade=t=out:st=3.38:d=0.72"),
     "salon_glassware": ("glass", 0.0, 1.26,
         "highpass=f=180,lowpass=f=4400,"
-        "aecho=0.87:0.38:47|109:0.12|0.07,"
+        "loudnorm=I=-23:TP=-6:LRA=10,aecho=0.87:0.38:47|109:0.12|0.07,"
         "afade=t=in:st=0:d=0.10,afade=t=out:st=1.02:d=0.24"),
     "salon_chair": ("chair", 0.0, 4.0,
         "highpass=f=95,lowpass=f=3200,"
-        "aecho=0.86:0.35:53|117:0.13|0.07,"
+        "loudnorm=I=-24:TP=-6:LRA=10,aecho=0.86:0.35:53|117:0.13|0.07,"
         "afade=t=in:st=0:d=0.16,afade=t=out:st=3.55:d=0.45"),
     "salon_footsteps": ("steps", 2.0, 4.0,
         "highpass=f=100,lowpass=f=3450,"
-        "aecho=0.87:0.30:49|119:0.12|0.07,"
+        "loudnorm=I=-23:TP=-6:LRA=10,aecho=0.87:0.30:49|119:0.12|0.07,"
         "afade=t=in:st=0:d=0.16,afade=t=out:st=3.57:d=0.43"),
 }
 
@@ -67,6 +67,7 @@ def render_applause(source: Path, dest: Path) -> None:
         "[f][l][r]amix=inputs=3:duration=longest:normalize=0,"
         "alimiter=limit=0.91,"
         "aecho=0.91:0.24:61|116:0.09|0.055,"
+        "loudnorm=I=-19:TP=-4:LRA=9,"
         "afade=t=in:st=0:d=0.06,"
         "afade=t=out:st=2.29:d=0.31,"
         "apad=whole_dur=2.60,atrim=duration=2.60[out]"
