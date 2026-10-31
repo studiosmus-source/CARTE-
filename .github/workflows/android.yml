@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [main]
 
+# Building obsolete intermediate commits wastes minutes and produces APKs
+# which never correspond to the branch head.
+concurrency:
+  group: carte-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
