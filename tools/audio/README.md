@@ -4,17 +4,17 @@
 
 Il motore `Soundscape.kt` che generava fruscii sintetici è stato eliminato.
 Le sessioni di Scopa e Briscola segnalano eventi di carte a
-`SalonAudio.kt`, che riproduce soltanto registrazioni OGG locali. I tre
-rumori delle carte sono caricati in anticipo tramite `SoundPool`, senza creare
+`SalonAudio.kt`, che riproduce soltanto registrazioni OGG locali. I nove rumori delle carte (tre registrazioni distinte per azione) sono caricati in anticipo tramite `SoundPool`, senza creare
 un `MediaPlayer` a ogni giocata; un evento nuovo interrompe quello precedente.
 
 Ordine della build:
 1. `tools/audio/import_salon_audio.py` estrae in `app/src/main/res/raw/`
    gli OGG approvati dall'archivio `tools/audio/CARTE-Salon-Audio.zip`
    caricato dall'utente (contenente il jazz finale).
-2. `tools/audio/import_approved_recordings.py` scarica esclusivamente le
-   registrazioni CC0 già selezionate e mancanti, verifica licenza e SHA-256,
-   ne ricava gli spezzoni e crea OGG offline tramite FFmpeg.
+2. `tools/audio/import_approved_recordings.py` importa gli ambienti CC0 mancanti.
+   `tools/audio/build_card_variations.py` scarica e verifica la registrazione
+   originale CC0 delle carte (SHA-256 bloccato), seleziona nove prese acustiche
+   differenti e crea nove brevi OGG senza compressione dinamica né pitch-shifting.
 3. Gradle include nell'APK le registrazioni; CI verifica 40 carte HD e tutti
    e 10 i file audio richiesti. Non esiste streaming in gioco.
 
@@ -26,9 +26,9 @@ Kenney e Muges e la diagnostica temporanea sono stati eliminati.
 | Risorsa Android | Registrazione | Licenza |
 |---|---|---|
 | salon_jazz.ogg | Montaggio jazz noir **approvato** 3:12 di *Echoes on Bourbon Street* di MarkMusicStudio, da file inviato dall'utente | Pixabay Content License: integrata nell'app, non distribuire traccia singolarmente |
-| salon_card_deal.ogg | [MellowAudio, 591486](https://freesound.org/people/MellowAudio/sounds/591486/) 0,06–0,54 s (distribuzione breve) | CC0 |
-| salon_card_play.ogg | MellowAudio 591486, spezzone 6,22–6,50 s (colpo anticipato) | CC0 |
-| salon_card_collect.ogg | MellowAudio 591486, spezzone 12,06–12,45 s (raccolta breve) | CC0 |
+| salon_card_deal_01–03.ogg | [MellowAudio, 591486](https://freesound.org/people/MellowAudio/sounds/591486/) 3 prese reali distinte da 0,32 s | CC0 |
+| salon_card_play_01–03.ogg | MellowAudio 591486, 3 prese reali distinte da 0,27 s | CC0 |
+| salon_card_collect_01–03.ogg | MellowAudio 591486, 3 prese reali distinte da 0,40 s | CC0 |
 | salon_fireplace.ogg | [Davor, 382616](https://freesound.org/people/Davor/sounds/382616/) spezzone 70 s, con riduzione rumore ed EQ | CC0 |
 | salon_conversation.ogg | [SpliceSound, 260124](https://freesound.org/people/SpliceSound/sounds/260124/) due adulti, 19 s | CC0 |
 | salon_glassware.ogg | [AardsReal, 842180](https://freesound.org/people/AardsReal/sounds/842180/) piccoli bicchieri, 1,26 s | CC0 |
