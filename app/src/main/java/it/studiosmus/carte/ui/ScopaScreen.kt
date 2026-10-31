@@ -47,7 +47,7 @@ class ScopaScreen(
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dp(12), dp(12), dp(12), dp(16))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22)))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(24, 30, 26), Color.rgb(39, 43, 35), Color.rgb(20, 25, 23)))
         }
         val scroll = ScrollView(context).apply { isFillViewport = true }
         scroll.addView(root)
@@ -66,21 +66,25 @@ class ScopaScreen(
         root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
         root.addView(renderer.cardBackRow(match.hands[1].size))
-        val felt = LinearLayout(context).apply {
+        val felt = SalonTable(context).apply {
+            minimumHeight = dp(235)
+        }
+        val tableContent = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(8), dp(12), dp(8), dp(12))
-            background = panel(Color.rgb(18, 83, 62), 22, Color.rgb(121, 139, 82))
+            setPadding(dp(22), dp(28), dp(22), dp(28))
         }
-        felt.addView(label("SUL TAVOLO", 13f, gold, true))
+        tableContent.addView(label("SUL TAVOLO", 12f, gold, true))
         if (match.table.isEmpty()) {
-            felt.addView(label("Tavolo libero", 15f, ivory).apply {
-                setPadding(dp(8), dp(24), dp(8), dp(24))
+            tableContent.addView(label("Tavolo libero", 15f, ivory).apply {
+                setPadding(dp(8), dp(30), dp(8), dp(30))
             })
         } else {
-            felt.addView(renderer.cardRow(match.table))
+            tableContent.addView(renderer.cardRow(match.table))
         }
-        root.addView(felt, LinearLayout.LayoutParams(-1, -2))
+        felt.addView(tableContent, android.widget.FrameLayout.LayoutParams(
+            -1, -1, Gravity.CENTER))
+        root.addView(felt, LinearLayout.LayoutParams(-1, dp(235)))
         root.addView(label(match.lastMove, 13f, gold))
         if (match.finished) {
             val score = match.score()
@@ -93,6 +97,8 @@ class ScopaScreen(
             root.addView(label("Punti finali: ${score[0]} — ${score[1]}", 20f, ivory))
             root.addView(Button(context).apply {
                 text = "NUOVA PARTITA"
+                setTextColor(ivory)
+                background = panel(Color.rgb(70, 48, 33), 14, Color.rgb(124, 89, 55))
                 setOnClickListener { onNewGame() }
             })
         } else {
