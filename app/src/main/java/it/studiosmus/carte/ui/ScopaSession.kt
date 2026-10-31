@@ -18,6 +18,10 @@ class ScopaSession(private val changed: () -> Unit) {
         private set
     var collecting = false
         private set
+    var collectedCards: List<Card> = emptyList()
+        private set
+    var captureWinner = 0
+        private set
 
     fun start() {
         stop()
@@ -42,6 +46,8 @@ class ScopaSession(private val changed: () -> Unit) {
         dealing = false
         preview = null
         collecting = false
+        collectedCards = emptyList()
+        captureWinner = 0
     }
 
     fun options(card: Card): List<List<Card>> =
@@ -74,10 +80,13 @@ class ScopaSession(private val changed: () -> Unit) {
             }
             preview = null
             collecting = capture != null
+            collectedCards = if (capture != null) capture + card else emptyList()
+            captureWinner = player
             changed()
             handler.postDelayed({
                 if (game !== match) return@postDelayed
                 collecting = false
+                collectedCards = emptyList()
                 dealing = !match.finished && match.hands[0].size > oldHandSize
                 changed()
                 handler.postDelayed({
