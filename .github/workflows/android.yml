@@ -31,6 +31,12 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Restore stable TEST-ONLY debug signature
+        run: |
+          mkdir -p "$HOME/.android"
+          base64 --decode tools/signing/TEST_ONLY_debug_keystore.b64 > "$HOME/.android/debug.keystore"
+          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey > /dev/null
+          echo "Stable non-production signing key loaded (not for release)."
       - name: Install approved worn card artwork or verified legacy deck
         run: |
           python3 tools/cards/import_cards.py
