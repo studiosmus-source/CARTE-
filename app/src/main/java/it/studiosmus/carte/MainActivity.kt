@@ -2,6 +2,7 @@ package it.studiosmus.carte
 
 import android.app.Activity
 import android.os.Bundle
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -27,6 +28,8 @@ class MainActivity : Activity() {
     private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ renderScopa() }, { soundscape.playCard(it) }) }
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
+    private var currentScreen = 0 // home=0, audio=1, briscola=2, scopa=3
+    private var audioReturnsToBriscola = false
     private var fireplaceEnabled = false
     private var ambience = AmbienceSettings()
     private val ivory = Color.rgb(247, 233, 203)
@@ -49,6 +52,16 @@ class MainActivity : Activity() {
         ).normalized()
         applyAmbience()
         showHome()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        when (currentScreen) {
+            1 -> showAudioSettings(audioReturnsToBriscola)
+            2 -> renderBriscola()
+            3 -> renderScopa()
+            else -> showHome()
+        }
     }
 
     override fun onPause() {
@@ -133,6 +146,7 @@ class MainActivity : Activity() {
     private val cardRenderer by lazy { it.studiosmus.carte.ui.CardRenderer(this, gold, ivory) }
 
     private fun showHome() {
+        currentScreen = 0
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -189,6 +203,8 @@ class MainActivity : Activity() {
     }
 
     private fun showAudioSettings(returnToBriscola: Boolean = false) {
+        currentScreen = 1
+        audioReturnsToBriscola = returnToBriscola
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(22), dp(28), dp(22), dp(28))
@@ -297,6 +313,7 @@ class MainActivity : Activity() {
 
     private fun renderScopa() {
         if (scopaSession.game == null) return
+        currentScreen = 3
         installScreen(it.studiosmus.carte.ui.ScopaScreen(
             this, scopaSession, cardRenderer,
             onBack = { scopaSession.stop(); showHome() },
@@ -313,6 +330,7 @@ class MainActivity : Activity() {
 
     private fun renderBriscola() {
         if (game == null) return
+        currentScreen = 2
         installScreen(it.studiosmus.carte.ui.BriscolaScreen(
             this, briscolaSession, cardRenderer,
             onBack = { briscolaSession.stop(); showHome() },
