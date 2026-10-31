@@ -8,6 +8,8 @@ class ScopaGame(random: Random = Random.Default) {
     val hands = listOf(mutableListOf<Card>(), mutableListOf<Card>())
     val captured = listOf(mutableListOf<Card>(), mutableListOf<Card>())
     val table = mutableListOf<Card>()
+    /** Exposes only the PUBLIC number of undealt cards, never their identities. */
+    val remainingCards: Int get() = stock.size
     val scope = intArrayOf(0, 0)
     var turn: Int = 0
         private set
