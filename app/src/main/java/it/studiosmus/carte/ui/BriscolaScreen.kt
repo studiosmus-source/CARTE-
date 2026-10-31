@@ -84,7 +84,9 @@ class BriscolaScreen(
             table.addView(
                 BriscolaStock(context, renderer, match.trumpCard, match.remainingCards),
                 FrameLayout.LayoutParams(dp(150), dp(160),
-                    Gravity.START or Gravity.CENTER_VERTICAL)
+                    Gravity.START or Gravity.CENTER_VERTICAL).apply {
+                    leftMargin = dp(29)
+                }
             )
         }
         val lead = match.lead
@@ -102,8 +104,13 @@ class BriscolaScreen(
             lead?.first == 0 -> "HAI GIOCATO"
             else -> match.lastTrick.ifEmpty { "TOCCA A TE" }
         }
-        table.addView(label(tableMessage, 12f, ivory, true),
-            FrameLayout.LayoutParams(-1, dp(38), Gravity.BOTTOM))
+        table.addView(label(tableMessage, 12f, ivory, true).apply {
+            background = panel(Color.argb(175, 12, 31, 25), 11, Color.argb(95, 196, 157, 91))
+        }, FrameLayout.LayoutParams(-1, dp(36), Gravity.BOTTOM).apply {
+            leftMargin = dp(46)
+            rightMargin = dp(46)
+            bottomMargin = dp(43)
+        })
         root.addView(label("TU  ·  ${match.points[0]} PUNTI", 14f, gold, true))
         if (match.finished) {
             root.addView(label(match.result(), 24f, ivory, true))
