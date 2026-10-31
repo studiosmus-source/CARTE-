@@ -81,6 +81,10 @@ jobs:
         run: |
           command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
           command -v ffprobe
+      - name: Refresh salon sound field
+        run: python3 tools/audio/rebuild_spatial_salon.py
+      - name: Verify salon sound field
+        run: python3 tools/audio/check_spatial_salon.py
       - name: Build nine distinct card-handling recordings (pinned CC0 source)
         run: |
           python3 tools/audio/build_card_variations.py
