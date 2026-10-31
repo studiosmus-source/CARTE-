@@ -27,6 +27,7 @@ class SalonAudio(
     private val handler = Handler(Looper.getMainLooper())
     private val players = mutableSetOf<MediaPlayer>()
     private val names = mutableMapOf<MediaPlayer, String>()
+    private val spatialMix = mutableMapOf<MediaPlayer, Pair<Float, Float>>()
     private val pending = mutableListOf<Runnable>()
     private var music: MediaPlayer? = null
     private var previewPlayer: MediaPlayer? = null
@@ -42,6 +43,9 @@ class SalonAudio(
     private var settings = AmbienceSettings()
     private var fireplaceEnabled = false
     private var transientCount = 0
+    private val whisperNames = listOf("salon_whisper_01", "salon_whisper_02", "salon_whisper_03", "salon_whisper_04")
+    private var lastWhisper = -1
+    private var whisperTask: Runnable? = null
     // Card impact cues are preloaded, unlike the long-running room ambience.
     private var cardPool: SoundPool? = null
     private val cardSamples = mutableMapOf<CardSoundEvent, Int>()
@@ -74,19 +78,12 @@ class SalonAudio(
     fun enterScene(next: Scene, durationMs: Long = 1800L) {
         val previous = scene
         scene = next
-        // The room should be perceptibly inhabited soon after entering, but
-        // never overlay the initial cinematic fade or force constant chatter.
+        // Salon conversations have their own irregular, scene-scoped schedule.
+        // Never play a long fixed greeting each time the table opens.
         if (next == Scene.SALON && previous != Scene.SALON && running) {
-            val token = generation
-            val firstMurmur = object : Runnable {
-                override fun run() {
-                    pending.remove(this)
-                    if (running && token == generation && scene == Scene.SALON &&
-                        transientCount == 0) playOnce("salon_conversation")
-                }
-            }
-            pending.add(firstMurmur)
-            handler.postDelayed(firstMurmur, random.nextLong(7500L, 14500L))
+            scheduleWhisper(initial = true)
+        } else if (next != Scene.SALON) {
+            cancelWhisper()
         }
         transition?.let(handler::removeCallbacks)
         transition = null
@@ -135,7 +132,8 @@ class SalonAudio(
         ensureMusic()
         prepareCardCues()
         if (fireplaceEnabled) playLoopIfMissing("salon_fireplace")
-        AmbienceScheduler.Event.entries.forEach(::schedule)
+        listOf(AmbienceScheduler.Event.GLASSWARE, AmbienceScheduler.Event.DOOR).forEach(::schedule)
+        if (scene == Scene.SALON) scheduleWhisper(initial = true)
         refreshMix()
     }
 
@@ -144,6 +142,7 @@ class SalonAudio(
         stopPreview()
         running = false
         generation++
+        cancelWhisper()
         stopCardCue()
         cardPool?.release()
         cardPool = null
@@ -281,9 +280,15 @@ class SalonAudio(
     private fun refreshMix() {
         updateMusicDistance()
         players.toList().forEach { player ->
-            val gain = volumeFor(names[player] ?: "") *
+            val (level, pan) = spatialMix[player] ?: (1f to 0f)
+            val gain = volumeFor(names[player] ?: "") * level *
                 if (previewPlayer != null && player === music) 0.08f else 1f
-            try { player.setVolume(gain, gain) } catch (_: IllegalStateException) { }
+            try {
+                player.setVolume(
+                    (gain * (1f - pan.coerceAtLeast(0f))).coerceIn(0f, 1f),
+                    (gain * (1f + pan.coerceAtMost(0f))).coerceIn(0f, 1f)
+                )
+            } catch (_: IllegalStateException) { }
         }
         if (activeCardStream != 0) {
             val gain = (settings.cards * roomPerspective).coerceIn(0f, 1f)
@@ -294,6 +299,7 @@ class SalonAudio(
     private fun dispose(player: MediaPlayer) {
         players.remove(player)
         names.remove(player)
+        spatialMix.remove(player)
         if (music === player) {
             releaseEqualizer()
             music = null
@@ -391,12 +397,13 @@ class SalonAudio(
         if (won && scene == Scene.SALON) playOnce("salon_applause")
     }
 
-    private fun playOnce(name: String): Boolean {
+    private fun playOnce(name: String, level: Float = 1f, pan: Float = 0f): Boolean {
         if (!running || !hasRecording(name)) return false
         val player = createPlayer(name) ?: return false
         val session = generation
         players.add(player)
         names[player] = name
+        spatialMix[player] = level.coerceIn(0f, 1f) to pan.coerceIn(-0.55f, 0.55f)
         transientCount++
         refreshMix()
         fun finish(p: MediaPlayer) {
@@ -409,6 +416,59 @@ class SalonAudio(
         player.setOnErrorListener { broken, _, _ -> finish(broken); true }
         try { player.start() } catch (_: IllegalStateException) { finish(player); return false }
         return true
+    }
+
+    private fun cancelWhisper() {
+        whisperTask?.let(handler::removeCallbacks)
+        whisperTask = null
+    }
+
+    private fun scheduleWhisper(initial: Boolean = false) {
+        cancelWhisper()
+        if (!running || scene != Scene.SALON) return
+        val delay = if (initial) scheduler.firstWhisperDelayMs()
+                    else scheduler.nextWhisperDelayMs()
+        val task = object : Runnable {
+            override fun run() {
+                if (whisperTask !== this) return
+                whisperTask = null
+                if (!running || scene != Scene.SALON) return
+                playWhisperConversation()
+                scheduleWhisper()
+            }
+        }
+        whisperTask = task
+        handler.postDelayed(task, delay)
+    }
+
+    /**
+     * Genuine voices from different excerpts of the approved CC0 conversation.
+     * Most visits have one distant group; occasionally a second excerpt starts
+     * off-axis, suggesting two small groups without a constant crowd bed.
+     */
+    private fun playWhisperConversation() {
+        if (settings.conversations <= 0f || transientCount > 2) return
+        val available = whisperNames.filter(::hasRecording)
+        if (available.isEmpty()) return
+        val firstIndex = scheduler.nextWhisperIndex(lastWhisper, available.size)
+        lastWhisper = firstIndex
+        val pan = if (random.nextBoolean()) -.34f else .34f
+        val level = random.nextFloat() * .18f + .72f
+        if (!playOnce(available[firstIndex], level, pan)) return
+        if (!scheduler.shouldOverlapWhispers() || available.size < 2) return
+        val secondIndex = scheduler.nextWhisperIndex(firstIndex, available.size)
+        val token = generation
+        val follow = object : Runnable {
+            override fun run() {
+                pending.remove(this)
+                if (running && scene == Scene.SALON && token == generation &&
+                    settings.conversations > 0f && transientCount < 3) {
+                    playOnce(available[secondIndex], level * .64f, -pan)
+                }
+            }
+        }
+        pending.add(follow)
+        handler.postDelayed(follow, scheduler.overlapWhisperDelayMs())
     }
 
     /** A brief believable incident, not independent randomly overlapping noises. */
@@ -437,10 +497,10 @@ class SalonAudio(
             override fun run() {
                 pending.remove(this)
                 if (!running) return
-                if (scene == Scene.SALON && transientCount == 0) {
+                if (scene == Scene.SALON && transientCount < 3) {
                     when (event) {
                         AmbienceScheduler.Event.GLASSWARE -> playOnce("salon_glassware")
-                        AmbienceScheduler.Event.CONVERSATION -> playOnce("salon_conversation")
+                        AmbienceScheduler.Event.CONVERSATION -> Unit // scheduled separately
                         AmbienceScheduler.Event.DOOR -> playRoomMovement()
                     }
                 }
