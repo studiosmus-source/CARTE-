@@ -1,58 +1,56 @@
-# CARTE — offline salon audio
+# CARTE — salotto sonoro, tracce reali (31 ottobre 2026)
 
-Audio decisions approved 31 October 2026. This folder contains an **optional local bundle importer**, not generated or fake sound effects.
+## Un solo percorso di importazione
 
-## Real fireplace fallback
+Il motore `Soundscape.kt` che generava fruscii sintetici è stato eliminato.
+Le sessioni di Scopa e Briscola segnalano eventi di carte a
+`SalonAudio.kt`, che riproduce soltanto registrazioni OGG locali.
 
-When the bundle does not already supply salon_fireplace.ogg, CI fetches the
-real, loopable fireplace recording in [Muges / ambientsounds](https://github.com/Muges/ambientsounds),
-whose README attributes the original CC0 recording to *inchadney* on Freesound.
-It is included offline in the APK and replaces the old synthesized hiss; the
-app never streams it. This is a provisional listening candidate, and can be
-replaced without modifying source by an approved Freesound Davor recording in
-the audio ZIP.
+Ordine della build:
+1. `tools/audio/import_salon_audio.py` estrae in `app/src/main/res/raw/`
+   gli OGG approvati dall'archivio `tools/audio/CARTE-Salon-Audio.zip`
+   caricato dall'utente (contenente il jazz finale).
+2. `tools/audio/import_approved_recordings.py` scarica esclusivamente le
+   registrazioni CC0 già selezionate e mancanti, verifica licenza e SHA-256,
+   ne ricava gli spezzoni e crea OGG offline tramite FFmpeg.
+3. Gradle include nell'APK le registrazioni; CI verifica 40 carte HD e tutti
+   e 10 i file audio richiesti. Non esiste streaming in gioco.
 
-## Real card foley fallback
+L'archivio dell'utente prevale sempre sugli altri suoni. I vecchi importatori
+Kenney e Muges e la diagnostica temporanea sono stati eliminati.
 
-If the user-provided ZIP does not contain three card event recordings, the
-Android build downloads the **Kenney Casino Audio** CC0 1.0 archive from
-[OpenGameArt](https://opengameart.org/content/54-casino-sound-effects-cards-dice-chips),
-originally published at [Kenney.nl](https://kenney.nl/assets/casino-audio).
-The build imports real recorded sounds (card-shuffle.ogg, card-place-2.ogg and
-card-shove-4.ogg) into salon_card_deal, salon_card_play, salon_card_collect
-respectively. These are **candidates for Android listening tests**, not the
-original Freesound recordings selected by the user. They are never downloaded
-by the phone, and a user-supplied approved sample takes priority.
+## Registrazioni e provenienza
 
-The previous synthesized fireplace and card hiss was removed entirely. An
-unavailable recording stays silent rather than falling back to white noise.
+| Risorsa Android | Registrazione | Licenza |
+|---|---|---|
+| salon_jazz.ogg | Montaggio jazz noir **approvato** 3:12 di *Echoes on Bourbon Street* di MarkMusicStudio, da file inviato dall'utente | Pixabay Content License: integrata nell'app, non distribuire traccia singolarmente |
+| salon_card_deal.ogg | [MellowAudio, 591486](https://freesound.org/people/MellowAudio/sounds/591486/) 0–3 s | CC0 |
+| salon_card_play.ogg | MellowAudio 591486, spezzone 5,2–6,4 s | CC0 |
+| salon_card_collect.ogg | MellowAudio 591486, spezzone 12–14 s | CC0 |
+| salon_fireplace.ogg | [Davor, 382616](https://freesound.org/people/Davor/sounds/382616/) spezzone 70 s, con riduzione rumore ed EQ | CC0 |
+| salon_conversation.ogg | [SpliceSound, 260124](https://freesound.org/people/SpliceSound/sounds/260124/) due adulti, 19 s | CC0 |
+| salon_glassware.ogg | [AardsReal, 842180](https://freesound.org/people/AardsReal/sounds/842180/) piccoli bicchieri, 1,26 s | CC0 |
+| salon_chair.ogg | [SpliceSound, 218316](https://freesound.org/people/SpliceSound/sounds/218316/) sedia su legno, 4 s | CC0 |
+| salon_footsteps.ogg | [allrealsound, 161756](https://freesound.org/people/allrealsound/sounds/161756/) scarpe sul legno, 4 s | CC0 |
+| salon_applause.ogg | [Jofae, 362954](https://freesound.org/people/Jofae/sounds/362954/) tre battiti in 2,25 s | CC0 |
 
-## Build input
+La porta `salon_door.ogg` resta facoltativa: non è stato selezionato un
+campione definitivo. Vittorie: pochi battiti, sconfitte e pareggi: silenzio
+o brusio già presente, nessun effetto televisivo.
 
-Put one file at `tools/audio/CARTE-Salon-Audio.zip` on the branch to be built. At the ZIP root, use the exact resource filenames below (Ogg Vorbis, nonempty). `python3 tools/audio/import_salon_audio.py` validates the entries and puts them into Android `res/raw` before Gradle compilation. The ZIP is not shipped separately in the APK.
+## Stato delle verifiche
 
-| Resource | Source / purpose | Status |
-| --- | --- | --- |
-| `salon_jazz.ogg` | CARTE approved 3:12 mix of *Echoes on Bourbon Street* by MarkMusicStudio, remixed by the app's creator; original from Pixabay ID 572116 | Approved, processed; binary bundle supplied separately |
-| `salon_fireplace.ogg` | Davor, *Fire crackling in fireplace*, Freesound 382616, CC0 | Approved candidate; actual file not yet obtained |
-| `salon_card_deal.ogg` | MellowAudio, *Playing Cards.wav*, Freesound 591486, CC0 | Approved candidate; needs edited section |
-| `salon_card_play.ogg` | MellowAudio, Freesound 591486, CC0 | Needs selected section |
-| `salon_card_collect.ogg` | MellowAudio, Freesound 591486, CC0 | Needs selected section |
-| `salon_conversation.ogg` | SpliceSound, *Indoor adult murmur*, Freesound 260124 and 260121, CC0 | Approved candidate; needs sample |
-| `salon_glassware.ogg` | Glass / wine pours, CC0 Freesound candidates 842180 and 382028 | Approved candidate; needs sample |
-| `salon_chair.ogg` | Chair drag, SpliceSound, Freesound 218316, verify exact licence | Approved candidate; needs sample |
-| `salon_footsteps.ogg` | Dress shoes on wood floor, allrealsound, Freesound 161756, verify exact licence | Approved candidate; needs sample |
-| `salon_applause.ogg` | Three real hand claps, Jofae, Freesound 362954, CC0 | Approved candidate; needs sample |
-| `salon_door.ogg` | Optional rare door sound | Not yet selected |
+Il file presente in APK non equivale a qualità d'ascolto approvata.
+CI prova solo integrità, decodifica, build e test automatici. Le scelte
+temporali dei tre spezzoni di carte sono **provvisorie**: devono essere
+valutate con il pulsante «ASCOLTA UN SUONO» in Impostazioni audio e poi
+durante una partita reale sul dispositivo Android.
 
-The hand claps play only after a **winning match**, not after each Scopa hand. Defeats and draws deliberately have no compulsory applause.
+La sequenza da controllare sul telefono: jazz nitido home -> musica che
+si allontana -> schermo nero -> dissolvenza sul tavolo vuoto con
+ambiente -> AVVIA e distribuzione -> musica continua e distante ->
+uscita in dissolvenza. Le successive mani di Scopa non tornano al nero.
 
-## Licence and provenance
-
-The user-provided music comes from Pixabay and must be **embedded in the game**, not distributed as an independent track or standalone audio collection. Check the [Pixabay Content License](https://pixabay.com/service/license-summary/) before distributing the game. Freesound samples need their exact sound page and licence checked before being incorporated. Keep the author and URL information in project credits even if CC0 makes credit optional.
-
-## Quality / acceptance
-
-Do not call the audio integration complete until the ZIP has been committed on this branch, the CI logs explicitly report the imported file count, the final APK contains the compiled resources, and a real Android-device test confirms: home jazz clean, black fade, empty table fade in, AVVIA deal, continuous music without restart, softly distant room EQ, restrained reactions, fade out.
-
-When no ZIP is present, the build remains available for non-audio testing but prints a warning and contains **no approved sampled jazz**. The old procedural effects have been removed; only recorded files are played.
+Non distribuire come release definitiva finché il livello dei suoni, il
+carattere del camino, il montaggio delle carte, gli eventi casuali e il
+loop musicale non sono stati approvati con un test funzionale.
