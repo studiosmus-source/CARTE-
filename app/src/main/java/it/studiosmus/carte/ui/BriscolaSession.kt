@@ -20,6 +20,8 @@ class BriscolaSession(private val changed: () -> Unit) {
         private set
     var collecting = false
         private set
+    var collectingCards: Pair<Card, Card>? = null
+        private set
     var lastWinner = 0
         private set
     var playedBy = -1
@@ -46,6 +48,7 @@ class BriscolaSession(private val changed: () -> Unit) {
         trickResolving = false
         dealing = false
         collecting = false
+        collectingCards = null
         lastWinner = 0
         playedBy = -1
         game = null
@@ -76,12 +79,14 @@ class BriscolaSession(private val changed: () -> Unit) {
                 return@postDelayed
             }
             collecting = true
+            collectingCards = first.second to card
             lastWinner = match.leader
             trickPreview = null
             changed()
             handler.postDelayed({
                 if (game !== match) return@postDelayed
                 collecting = false
+                collectingCards = null
                 trickResolving = false
                 dealing = !match.finished && match.remainingCards > 0
                 changed()
