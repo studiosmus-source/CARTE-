@@ -112,6 +112,26 @@ jobs:
                           )
           print("Verified: APK contains forty HD JPEG cards and any approved vintage images unchanged.")
           PY
+      - name: Verify supplied table textures INSIDE the APK
+        run: |
+          python3 - <<'PY'
+          from hashlib import sha256
+          from zipfile import ZipFile
+          from pathlib import Path
+          files = {
+              "assets/textures/salon_wood.webp": "a6afaae14fb02f15edeb03d5277bbc86275dc0b4856358a1f47bcea99911f057",
+              "assets/textures/salon_felt.webp": "5385d06482cd5c0cafc745c15c81925ba74f3696302c8fae3c363afad43d4734",
+          }
+          source = Path("app/src/main/java/it/studiosmus/carte/ui/SalonTable.kt").read_text()
+          for name in ("salon_wood", "salon_felt"):
+              assert f'loadTexture("{name}")' in source and "drawBitmap" in source, name
+          with ZipFile("app/build/outputs/apk/debug/app-debug.apk") as archive:
+              for name, expected in files.items():
+                  packaged = archive.read(name)
+                  assert packaged.startswith(b"RIFF") and packaged[8:12] == b"WEBP", name
+                  assert sha256(packaged).hexdigest() == expected, f"Texture differs in APK: {name}"
+                  print(f"Verified user-supplied texture in APK: {name}, {len(packaged)} bytes")
+          PY
       - name: Verify recorded audio inside the APK
         run: |
           python3 - <<'PY'
