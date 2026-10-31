@@ -4,7 +4,9 @@
 
 Il motore `Soundscape.kt` che generava fruscii sintetici è stato eliminato.
 Le sessioni di Scopa e Briscola segnalano eventi di carte a
-`SalonAudio.kt`, che riproduce soltanto registrazioni OGG locali.
+`SalonAudio.kt`, che riproduce soltanto registrazioni OGG locali. I tre
+rumori delle carte sono caricati in anticipo tramite `SoundPool`, senza creare
+un `MediaPlayer` a ogni giocata; un evento nuovo interrompe quello precedente.
 
 Ordine della build:
 1. `tools/audio/import_salon_audio.py` estrae in `app/src/main/res/raw/`
@@ -24,9 +26,9 @@ Kenney e Muges e la diagnostica temporanea sono stati eliminati.
 | Risorsa Android | Registrazione | Licenza |
 |---|---|---|
 | salon_jazz.ogg | Montaggio jazz noir **approvato** 3:12 di *Echoes on Bourbon Street* di MarkMusicStudio, da file inviato dall'utente | Pixabay Content License: integrata nell'app, non distribuire traccia singolarmente |
-| salon_card_deal.ogg | [MellowAudio, 591486](https://freesound.org/people/MellowAudio/sounds/591486/) 0–3 s | CC0 |
-| salon_card_play.ogg | MellowAudio 591486, spezzone 5,2–6,4 s | CC0 |
-| salon_card_collect.ogg | MellowAudio 591486, spezzone 12–14 s | CC0 |
+| salon_card_deal.ogg | [MellowAudio, 591486](https://freesound.org/people/MellowAudio/sounds/591486/) 0,06–0,54 s (distribuzione breve) | CC0 |
+| salon_card_play.ogg | MellowAudio 591486, spezzone 6,22–6,50 s (colpo anticipato) | CC0 |
+| salon_card_collect.ogg | MellowAudio 591486, spezzone 12,06–12,45 s (raccolta breve) | CC0 |
 | salon_fireplace.ogg | [Davor, 382616](https://freesound.org/people/Davor/sounds/382616/) spezzone 70 s, con riduzione rumore ed EQ | CC0 |
 | salon_conversation.ogg | [SpliceSound, 260124](https://freesound.org/people/SpliceSound/sounds/260124/) due adulti, 19 s | CC0 |
 | salon_glassware.ogg | [AardsReal, 842180](https://freesound.org/people/AardsReal/sounds/842180/) piccoli bicchieri, 1,26 s | CC0 |
@@ -41,10 +43,12 @@ o brusio già presente, nessun effetto televisivo.
 ## Stato delle verifiche
 
 Il file presente in APK non equivale a qualità d'ascolto approvata.
-CI prova solo integrità, decodifica, build e test automatici. Le scelte
-temporali dei tre spezzoni di carte sono **provvisorie**: devono essere
-valutate con il pulsante «ASCOLTA UN SUONO» in Impostazioni audio e poi
-durante una partita reale sul dispositivo Android.
+CI prova solo integrità, decodifica, build e test automatici. Il 31 ottobre i campioni delle carte sono stati accorciati da 3/1,2/2 secondi
+a circa 0,48/0,28/0,39 secondi, con attacco acustico anticipato e dissolvenza
+breve. `tools/audio/check_card_cues.py` verifica in CI durata e inizio del
+transiente; non sostituisce l'ascolto su telefono. Le soglie difensive in
+`SalonAudio.kt` interrompono anche eventuali campioni troppo lunghi.
+I volumi precedentemente approvati non vengono modificati.
 
 La sequenza da controllare sul telefono: jazz nitido home -> musica che
 si allontana -> schermo nero -> dissolvenza sul tavolo vuoto con
