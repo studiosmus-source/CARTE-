@@ -38,6 +38,23 @@ class AmbienceScheduler(private val random: kotlin.random.Random = kotlin.random
         return random.nextLong(range.first, range.last + 1)
     }
 
+    /** Voices begin after a natural settling-in period, then return irregularly. */
+    fun firstWhisperDelayMs(): Long = random.nextLong(15_000L, 31_001L)
+
+    fun nextWhisperDelayMs(): Long = random.nextLong(24_000L, 66_001L)
+
+    fun overlapWhisperDelayMs(): Long = random.nextLong(450L, 1_401L)
+
+    fun shouldOverlapWhispers(): Boolean = random.nextInt(5) == 0
+
+    /** Avoid replaying the exact same excerpt twice in succession. */
+    fun nextWhisperIndex(previous: Int, size: Int): Int {
+        require(size > 0)
+        if (size == 1) return 0
+        val choice = random.nextInt(size - 1)
+        return if (choice >= previous && previous in 0 until size) choice + 1 else choice
+    }
+
     fun nextEventDurationMs(event: Event): Long = when (event) {
         Event.GLASSWARE -> random.nextLong(400L, 1600L)
         Event.DOOR -> random.nextLong(800L, 3000L)
