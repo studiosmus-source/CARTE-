@@ -1,6 +1,7 @@
 package it.studiosmus.carte.ui
 
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.AccelerateInterpolator
 
@@ -40,24 +41,34 @@ object CardMotion {
             return
         }
         card.alpha = 0f
-        card.post {
-            if (!card.isAttachedToWindow || !stock.isAttachedToWindow ||
-                card.width <= 0 || stock.width <= 0) {
-                card.alpha = 1f
-                return@post
+        // A normal post() may run before the first Android layout and thus
+        // find width=0, leaving the card motionless. PreDraw is the first
+        // guaranteed point when both target hand and source deck are measured.
+        val observer = card.viewTreeObserver
+        observer.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (card.width <= 0 || card.height <= 0 ||
+                    stock.width <= 0 || stock.height <= 0) return true
+                if (card.viewTreeObserver.isAlive)
+                    card.viewTreeObserver.removeOnPreDrawListener(this)
+                if (!card.isAttachedToWindow || !stock.isAttachedToWindow) {
+                    card.alpha = 1f
+                    return true
+                }
+                val stockAt = IntArray(2)
+                val targetAt = IntArray(2)
+                stock.getLocationOnScreen(stockAt)
+                card.getLocationOnScreen(targetAt)
+                val (dx, dy) = CardMotionGeometry.stockToCard(
+                    stockAt[0].toFloat(), stockAt[1].toFloat(),
+                    stock.width.toFloat(), stock.height.toFloat(),
+                    targetAt[0].toFloat(), targetAt[1].toFloat(),
+                    card.width.toFloat(), card.height.toFloat()
+                )
+                slide(card, dx, dy, if (dx > 0) 10f else -10f, 390L, delay)
+                return true
             }
-            val stockAt = IntArray(2)
-            val targetAt = IntArray(2)
-            stock.getLocationOnScreen(stockAt)
-            card.getLocationOnScreen(targetAt)
-            val (dx, dy) = CardMotionGeometry.stockToCard(
-                stockAt[0].toFloat(), stockAt[1].toFloat(),
-                stock.width.toFloat(), stock.height.toFloat(),
-                targetAt[0].toFloat(), targetAt[1].toFloat(),
-                card.width.toFloat(), card.height.toFloat()
-            )
-            slide(card, dx, dy, if (dx > 0) 10f else -10f, 390L, delay)
-        }
+        })
     }
 
     fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int) =
