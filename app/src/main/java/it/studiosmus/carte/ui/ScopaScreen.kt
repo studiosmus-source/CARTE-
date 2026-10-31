@@ -47,7 +47,7 @@ class ScopaScreen(
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(12), dp(12), dp(12), dp(16))
+            setPadding(dp(7), dp(10), dp(7), dp(14))
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(24, 30, 26), Color.rgb(39, 43, 35), Color.rgb(20, 25, 23)))
         }
         val scroll = ScrollView(context).apply { isFillViewport = true }
@@ -68,12 +68,13 @@ class ScopaScreen(
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
         root.addView(renderer.cardBackRow(match.hands[1].size, session.dealing))
         val felt = SalonTable(context, fireplaceLight).apply {
-            minimumHeight = dp(325)
+            minimumHeight = dp(365)
         }
         val tableContent = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(32), dp(8), dp(32), dp(8))
+            // Leave the full width for table cards on narrow Android devices.
+            setPadding(dp(8), dp(8), dp(8), dp(8))
         }
         tableContent.addView(label(
             when {
@@ -88,7 +89,7 @@ class ScopaScreen(
             })
         } else {
             tableContent.addView(renderer.tableCards(match.table),
-                LinearLayout.LayoutParams(-1, dp(188)))
+                LinearLayout.LayoutParams(-1, dp(218)))
         }
         felt.addView(tableContent, android.widget.FrameLayout.LayoutParams(
             -1, -1, Gravity.CENTER))
@@ -97,15 +98,30 @@ class ScopaScreen(
                 session.collectedCards, collectTo = session.captureWinner == 1
             )
             felt.addView(captured, android.widget.FrameLayout.LayoutParams(
-                -1, dp(188), Gravity.CENTER))
+                -1, dp(218), Gravity.CENTER))
         }
         session.preview?.let { card ->
-            val moving = renderer.cardTile(card)
+            val moving = renderer.playedCard(card, computer = match.turn == 1)
             felt.addView(moving, android.widget.FrameLayout.LayoutParams(
                 dp(65), dp(108), Gravity.CENTER))
             CardMotion.reveal(moving, match.turn == 1) { dp(it) }
         }
-        root.addView(felt, LinearLayout.LayoutParams(-1, dp(325)))
+        session.scopaFlashPlayer?.let { who ->
+            felt.addView(label(
+                if (who == 0) "SCOPA!  +1 PER TE" else "SCOPA!  +1 COMPUTER",
+                23f, ivory, true
+            ).apply {
+                setPadding(dp(10), dp(8), dp(10), dp(8))
+                background = panel(Color.argb(225, 103, 47, 27), 11)
+                elevation = dp(14).toFloat()
+            }, android.widget.FrameLayout.LayoutParams(-1, dp(58),
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+                leftMargin = dp(16)
+                rightMargin = dp(16)
+                topMargin = dp(22)
+            })
+        }
+        root.addView(felt, LinearLayout.LayoutParams(-1, dp(365)))
         root.addView(label(
             if (session.dealing) "Si distribuiscono le carte…"
             else if (session.collecting) "Si raccolgono le carte…"
