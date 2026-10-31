@@ -2,6 +2,21 @@
 
 Audio decisions approved 31 October 2026. This folder contains an **optional local bundle importer**, not generated or fake sound effects.
 
+## Real card foley fallback
+
+If the user-provided ZIP does not contain three card event recordings, the
+Android build downloads the **Kenney Casino Audio** CC0 1.0 archive from
+[OpenGameArt](https://opengameart.org/content/54-casino-sound-effects-cards-dice-chips),
+originally published at [Kenney.nl](https://kenney.nl/assets/casino-audio).
+The build imports real recorded sounds (card-shuffle.ogg, card-place-2.ogg and
+card-shove-4.ogg) into salon_card_deal, salon_card_play, salon_card_collect
+respectively. These are **candidates for Android listening tests**, not the
+original Freesound recordings selected by the user. They are never downloaded
+by the phone, and a user-supplied approved sample takes priority.
+
+The previous synthesized fireplace and card hiss was removed entirely. An
+unavailable recording stays silent rather than falling back to white noise.
+
 ## Build input
 
 Put one file at `tools/audio/CARTE-Salon-Audio.zip` on the branch to be built. At the ZIP root, use the exact resource filenames below (Ogg Vorbis, nonempty). `python3 tools/audio/import_salon_audio.py` validates the entries and puts them into Android `res/raw` before Gradle compilation. The ZIP is not shipped separately in the APK.
@@ -30,4 +45,4 @@ The user-provided music comes from Pixabay and must be **embedded in the game**,
 
 Do not call the audio integration complete until the ZIP has been committed on this branch, the CI logs explicitly report the imported file count, the final APK contains the compiled resources, and a real Android-device test confirms: home jazz clean, black fade, empty table fade in, AVVIA deal, continuous music without restart, softly distant room EQ, restrained reactions, fade out.
 
-When no ZIP is present, the build remains available for non-audio testing but prints a warning and contains **no approved sampled jazz**. The old procedural effects remain only as a compatibility fallback until actual recordings are installed and tested.
+When no ZIP is present, the build remains available for non-audio testing but prints a warning and contains **no approved sampled jazz**. The old procedural effects have been removed; only recorded files are played.
