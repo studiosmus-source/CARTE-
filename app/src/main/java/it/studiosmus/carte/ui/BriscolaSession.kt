@@ -38,7 +38,7 @@ class BriscolaSession(private val changed: () -> Unit) {
                 changed()
                 advanceComputer()
             }
-        }, 600L)
+        }, 760L)
     }
 
     fun stop() {
@@ -96,7 +96,7 @@ class BriscolaSession(private val changed: () -> Unit) {
                         dealing = false
                         changed()
                         advanceComputer()
-                    }, 450L)
+                    }, 760L)
                 } else advanceComputer()
             }, 350L)
         }, 1000L)
