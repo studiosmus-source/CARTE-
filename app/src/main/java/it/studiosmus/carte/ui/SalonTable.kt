@@ -91,18 +91,27 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
             val w = width.toFloat()
             val h = height.toFloat()
             val time = SystemClock.uptimeMillis() / 1000f
-            // Two incommensurate slow oscillations avoid visible flashing loops.
-            val flicker = (.87f + .075f * sin(time * 2.3f) +
-                .035f * sin(time * 5.1f)).coerceIn(.73f, .99f)
-            val strength = (.35f + .65f * fireAmount) * flicker
-
-            val radius = max(w * .91f, h * .61f)
-            paint.shader = RadialGradient(-w * .10f, h * .60f, radius,
+            // Off-screen flames fluctuate in amplitude AND in the location
+            // of their reflected patch; avoid periodic blinking of the entire table.
+            val slow = sin(time * 1.71f)
+            val fast = sin(time * 4.38f)
+            val flicker = (.76f + .16f * slow + .08f * fast)
+                .coerceIn(.49f, 1f)
+            val strength = fireAmount * flicker
+            val centerY = h * (.61f + .022f * sin(time * 1.24f))
+            val radius = max(w * .82f, h * .50f)
+            paint.shader = RadialGradient(w * .035f, centerY, radius,
                 intArrayOf(
-                    Color.argb((96f * strength).toInt(), 255, 158, 87),
-                    Color.argb((30f * strength).toInt(), 243, 130, 60),
+                    Color.argb((150f * strength).toInt(), 255, 162, 77),
+                    Color.argb((58f * strength).toInt(), 246, 118, 45),
                     Color.TRANSPARENT
                 ), floatArrayOf(0f, .43f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, w, h, paint)
+            // Local amber kick along the wooden rim catches the flame,
+            // while the photographic material remains fully visible.
+            paint.shader = RadialGradient(-w * .24f, h * .61f, max(w * .80f, h * .38f),
+                intArrayOf(Color.argb((72f * strength).toInt(), 255, 196, 122),
+                    Color.TRANSPARENT), null, Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, w, h, paint)
             paint.shader = null
             if (isAttachedToWindow && visibility == VISIBLE) {
