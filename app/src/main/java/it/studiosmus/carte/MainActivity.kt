@@ -406,98 +406,13 @@ class MainActivity : Activity() {
         "${card.rank.number} ${card.suit.name.lowercase().replaceFirstChar { it.uppercase() }}"
 
     private fun renderBriscola() {
-        val match = game ?: return
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(10), dp(8), dp(10), dp(10))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(7, 30, 26), Color.rgb(20, 94, 68), forest))
-        }
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        header.addView(label("‹", 30f, gold, true).apply {
-            setPadding(dp(12), dp(4), dp(12), dp(4))
-            setOnClickListener {
-                briscolaSession.stop()
-                showHome()
-            }
-        })
-        header.addView(label("BRISCOLA", 19f, ivory, true),
-            LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(label("⚙", 23f, gold).apply {
-            setPadding(dp(12), dp(4), dp(12), dp(4))
-            setOnClickListener {
-                // Finish the current trick before opening settings: a pending
-                // callback must never replace the settings screen unexpectedly.
-                if (!trickResolving && !computerPending) {
-                    showAudioSettings(returnToBriscola = true)
-                }
-            }
-        })
-        root.addView(header, LinearLayout.LayoutParams(-1, -2))
-        root.addView(cardBackRow(match.hands[1].size))
-        root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
-
-        val table = FrameLayout(this).apply {
-            background = panel(Color.rgb(23, 103, 76), 24, Color.rgb(73, 125, 89))
-        }
-        root.addView(table, LinearLayout.LayoutParams(-1, 0, 1f).apply {
-            topMargin = dp(8)
-            bottomMargin = dp(8)
-        })
-        // The exposed trump lies sideways underneath the covered stock.
-        if (match.remainingCards > 0) {
-            val trump = cardTile(match.trumpCard).apply {
-                rotation = 90f
-                pivotX = dp(39).toFloat()
-                pivotY = dp(64).toFloat()
-            }
-            table.addView(trump, FrameLayout.LayoutParams(dp(78), dp(129), Gravity.START or Gravity.CENTER_VERTICAL).apply {
-                leftMargin = dp(38)
-            })
-            if (match.remainingCards > 1) {
-                val back = cardBackRow(1)
-                table.addView(back, FrameLayout.LayoutParams(dp(90), dp(120),
-                    Gravity.START or Gravity.CENTER_VERTICAL))
-            }
-            table.addView(label("${match.remainingCards}", 17f, ivory, true).apply {
-                background = panel(Color.rgb(17, 63, 52), 18)
-            }, FrameLayout.LayoutParams(dp(44), dp(38),
-                Gravity.START or Gravity.CENTER_VERTICAL).apply {
-                leftMargin = dp(22)
-                topMargin = dp(64)
-            })
-        }
-        val lead = match.lead
-        val leadView = lead?.let { cardTile(it.second) }
-        val replyView = trickPreview?.let { cardTile(it.second) }
-        it.studiosmus.carte.ui.TrickLayout.bind(
-            table, leadView, replyView, match.remainingCards > 0
-        ) { dp(it) }
-        val tableMessage = when {
-            trickResolving -> "PRESA IN CORSO"
-            lead?.first == 1 -> "IL COMPUTER HA GIOCATO"
-            lead?.first == 0 -> "HAI GIOCATO"
-            else -> match.lastTrick.ifEmpty { "TOCCA A TE" }
-        }
-        table.addView(label(tableMessage, 12f, ivory, true),
-            FrameLayout.LayoutParams(-1, dp(38), Gravity.BOTTOM))
-        root.addView(label("TU  ·  ${match.points[0]} PUNTI", 14f, gold, true))
-        if (match.finished) {
-            root.addView(label(match.result(), 24f, ivory, true))
-            root.addView(Button(this).apply {
-                text = "NUOVA PARTITA"
-                setOnClickListener { startBriscola() }
-            })
-        } else {
-            root.addView(cardRow(match.hands[0]) { card ->
-                if (match.turn == 0 && !trickResolving) playBriscola(0, card)
-            })
-        }
-        installScreen(root)
+        if (game == null) return
+        installScreen(it.studiosmus.carte.ui.BriscolaScreen(
+            this, briscolaSession, cardRenderer,
+            onBack = { briscolaSession.stop(); showHome() },
+            onSettings = { showAudioSettings(returnToBriscola = true) },
+            onNewGame = { startBriscola() }
+        ).render())
     }
 
 }
