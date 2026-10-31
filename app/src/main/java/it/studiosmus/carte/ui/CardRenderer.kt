@@ -171,6 +171,21 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             }
         }
 
+    /**
+     * Scopa table: all faces stay visible even with many laid-out cards.
+     * The same layout is used for brief collection animations.
+     */
+    fun tableCards(cards: List<Card>, collectTo: Boolean? = null): View {
+        val tiles = cards.map(::cardTile)
+        return AdaptiveCardGrid(context, tiles).apply {
+            if (collectTo != null) {
+                tiles.forEachIndexed { index, tile ->
+                    CardMotion.collect(tile, collectTo, ::dp, index * 45L)
+                }
+            }
+        }
+    }
+
     fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null, dealFrom: Boolean? = null, collectTo: Boolean? = null): View {
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
