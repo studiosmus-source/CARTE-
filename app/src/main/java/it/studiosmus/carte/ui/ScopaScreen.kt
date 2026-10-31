@@ -19,7 +19,8 @@ class ScopaScreen(
     private val renderer: CardRenderer,
     private val onBack: () -> Unit,
     private val onNewGame: () -> Unit,
-    private val onPlay: (Card) -> Unit
+    private val onPlay: (Card) -> Unit,
+    private val fireplaceLight: Float = 0f
 ) {
     private val ivory = Color.rgb(247, 233, 203)
     private val gold = Color.rgb(218, 174, 94)
@@ -66,7 +67,7 @@ class ScopaScreen(
         root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
         root.addView(renderer.cardBackRow(match.hands[1].size, session.dealing))
-        val felt = SalonTable(context).apply {
+        val felt = SalonTable(context, fireplaceLight).apply {
             minimumHeight = dp(325)
         }
         val tableContent = LinearLayout(context).apply {
