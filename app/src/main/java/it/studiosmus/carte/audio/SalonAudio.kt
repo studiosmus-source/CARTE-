@@ -2,6 +2,7 @@ package it.studiosmus.carte.audio
 
 import android.content.Context
 import android.media.MediaPlayer
+import android.media.audiofx.Equalizer
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -26,6 +27,7 @@ class SalonAudio(
     private val names = mutableMapOf<MediaPlayer, String>()
     private val pending = mutableListOf<Runnable>()
     private var music: MediaPlayer? = null
+    private var musicEqualizer: Equalizer? = null
     private var musicPositionMs = 0
     private var musicHasStarted = false
     private var generation = 0
@@ -123,6 +125,7 @@ class SalonAudio(
         music?.let {
             musicPositionMs = try { it.currentPosition } catch (_: IllegalStateException) { musicPositionMs }
         }
+        releaseEqualizer()
         players.toList().forEach(::dispose)
         music = null
         transientCount = 0
@@ -140,6 +143,13 @@ class SalonAudio(
         musicHasStarted = true
         if (length > 0) player.seekTo(musicPositionMs.coerceIn(0, length - 1))
         music = player
+        // An optional on-device EQ makes the same soundtrack clear in home and
+        // gently muffled across the room, without a second overlapping player.
+        try {
+            musicEqualizer = Equalizer(0, player.audioSessionId).also { it.enabled = true }
+        } catch (_: RuntimeException) {
+            releaseEqualizer()
+        }
         players.add(player)
         names[player] = "salon_jazz"
         try { player.start() } catch (_: IllegalStateException) { dispose(player) }
@@ -164,7 +174,38 @@ class SalonAudio(
         else -> 0f
     }
 
+    private fun releaseEqualizer() {
+        try { musicEqualizer?.release() } catch (_: RuntimeException) { }
+        musicEqualizer = null
+    }
+
+    private fun updateMusicDistance() {
+        val eq = musicEqualizer ?: return
+        try {
+            val distance = (1f - musicPerspective).coerceIn(0f, 1f)
+            val supported = eq.bandLevelRange
+            val lower = supported[0].toInt()
+            val upper = supported[1].toInt()
+            for (index in 0 until eq.numberOfBands.toInt()) {
+                val band = index.toShort()
+                val hz = eq.getCenterFreq(band) / 1000f
+                val maxCut = when {
+                    hz >= 2600f -> 1050f  // room absorbs upper harmonics
+                    hz >= 900f -> 480f
+                    else -> 0f  // bass travels farther
+                }
+                val level = (-distance * maxCut).toInt()
+                    .coerceIn(lower, upper).toShort()
+                if (eq.getBandLevel(band) != level) eq.setBandLevel(band, level)
+            }
+        } catch (_: RuntimeException) {
+            // EQ is optional. Device-specific effect errors must not stop music.
+            releaseEqualizer()
+        }
+    }
+
     private fun refreshMix() {
+        updateMusicDistance()
         players.toList().forEach { player ->
             val gain = volumeFor(names[player] ?: "")
             try { player.setVolume(gain, gain) } catch (_: IllegalStateException) { }
@@ -174,6 +215,10 @@ class SalonAudio(
     private fun dispose(player: MediaPlayer) {
         players.remove(player)
         names.remove(player)
+        if (music === player) {
+            releaseEqualizer()
+            music = null
+        }
         try { player.release() } catch (_: RuntimeException) { }
     }
 
