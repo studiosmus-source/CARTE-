@@ -171,15 +171,22 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
                 canvas.drawBitmap(wood, null, outer, paint)
                 canvas.restore()
             }
-            // Gentle overhead sheen adds depth without masking the photograph.
+            // Two independent reflections: broad skylight over the upper
+            // walnut facets and a narrow oblique sheen. Neither obscures grain.
             canvas.save()
             canvas.clipPath(outerShape)
             canvas.clipOutPath(innerShape)
             paint.style = Paint.Style.FILL
-            paint.shader = LinearGradient(0f, outer.top, w, outer.bottom,
-                intArrayOf(Color.argb(73, 255, 218, 158),
-                    Color.TRANSPARENT, Color.argb(100, 25, 12, 5)),
-                null, Shader.TileMode.CLAMP)
+            paint.shader = LinearGradient(0f, outer.top, w * .7f, outer.bottom,
+                intArrayOf(Color.argb(82, 255, 222, 174),
+                    Color.argb(18, 255, 192, 121),
+                    Color.argb(110, 32, 18, 11)),
+                floatArrayOf(0f, .45f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawRect(outer, paint)
+            paint.shader = RadialGradient(w * .47f, h * .08f, h * .55f,
+                intArrayOf(Color.argb(71, 255, 232, 180),
+                    Color.argb(18, 250, 196, 131), Color.TRANSPARENT),
+                floatArrayOf(0f, .42f, 1f), Shader.TileMode.CLAMP)
             canvas.drawRect(outer, paint)
             paint.shader = null
             canvas.restore()
@@ -210,17 +217,19 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
                 canvas.drawBitmap(textile, null, inner, paint)
             }
             paint.style = Paint.Style.FILL
-            paint.shader = RadialGradient(w * .42f, h * .17f,
-                maxOf(w, h) * .9f,
-                intArrayOf(Color.argb(93, 247, 220, 160),
-                    Color.argb(28, 208, 174, 103), Color.TRANSPARENT),
-                null, Shader.TileMode.CLAMP)
+            // More focused soft overhead pool: it defines the light direction
+            // without flattening the photographed felt fibres.
+            paint.shader = RadialGradient(w * .51f, h * .30f, h * .63f,
+                intArrayOf(Color.argb(111, 247, 232, 194),
+                    Color.argb(37, 218, 193, 141), Color.TRANSPARENT),
+                floatArrayOf(0f, .50f, 1f), Shader.TileMode.CLAMP)
             canvas.drawRect(inner, paint)
             paint.shader = null
-            paint.shader = RadialGradient(w * .5f, h * .47f,
-                maxOf(w, h) * .77f,
-                intArrayOf(Color.TRANSPARENT, Color.argb(66, 3, 24, 22)),
-                null, Shader.TileMode.CLAMP)
+            // Gentle edge falloff; card outlines remain clearly readable.
+            paint.shader = RadialGradient(w * .49f, h * .44f, h * .68f,
+                intArrayOf(Color.TRANSPARENT, Color.argb(14, 3, 24, 22),
+                    Color.argb(106, 3, 20, 19)),
+                floatArrayOf(0f, .56f, 1f), Shader.TileMode.CLAMP)
             canvas.drawRect(inner, paint)
             paint.shader = null
             canvas.restore()
@@ -240,7 +249,7 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
 
     /**
      * The off-screen fireplace lives to the lower left of the table. Its
-     * orange spill is intentionally almost imperceptible, with low-frequency
+     * orange spill is subtle but perceptible, with low-frequency
      * irregular variation rather than fast blinking. This is a separate small
      * transparent layer: the expensive wood/felt texture is never re-painted
      * on every animation tick. Child card hit targets remain above the light.
@@ -254,20 +263,20 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
             val h = height.toFloat()
             val seconds = SystemClock.uptimeMillis() / 1000f
             // Slow, subtle variations that are visible even at low volume.
-            val phase = (.88f + .085f * sin(seconds * 2.1f) +
-                .045f * sin(seconds * 5.4f) +
-                .020f * sin(seconds * 1.1f)).coerceIn(.73f, 1f)
-            val strength = (.52f + fireAmount * .48f) * phase
-            val originX = -w * .035f
-            val originY = h * .58f
-            val radius = max(w * .83f, h * .53f)
+            val phase = (.86f + .10f * sin(seconds * 2.05f) +
+                .05f * sin(seconds * 4.65f) +
+                .025f * sin(seconds * 1.13f)).coerceIn(.69f, 1f)
+            val strength = (.50f + fireAmount * .50f) * phase
+            val originX = w * .035f
+            val originY = h * (.53f + .012f * sin(seconds * .7f))
+            val radius = max(w * .82f, h * .48f)
             val outer = RectF(dp(2f), dp(12f), w - dp(2f), h - dp(12f))
             canvas.save()
             canvas.clipPath(octagon(outer, outer.width() * .235f, outer.height() * .175f))
             lightPaint.shader = RadialGradient(originX, originY, radius,
                 intArrayOf(
-                    Color.argb((150f * strength).toInt(), 255, 160, 83),
-                    Color.argb((68f * strength).toInt(), 244, 138, 63),
+                    Color.argb((169f * strength).toInt(), 255, 170, 92),
+                    Color.argb((78f * strength).toInt(), 244, 137, 58),
                     Color.TRANSPARENT
                 ),
                 floatArrayOf(0f, .40f, 1f), Shader.TileMode.CLAMP)
