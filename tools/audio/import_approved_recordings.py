@@ -25,6 +25,17 @@ SOURCES = {
     "steps": ("allrealsound", 161756),
     "claps": ("Jofae", 362954),
 }
+# Pin the verified HQ preview bytes from the successful 31 Oct 2026 CI run.
+# A changed upstream source must be reviewed, not silently bundled.
+SHA256 = {
+    "cards": "e68fd839e3d19ebe078735be21f3306b545f5f8acf26aa5747b9cdf87c87fecc",
+    "chair": "7ee3bd4021e3e1458ac9d8c736730de1a068d24587383ab7ff8114b965b7c4a9",
+    "claps": "d87c42b8252448692a07bd54e33a83c8d3cce07b5a2156baccdeaa7df1075cde",
+    "fire": "1e470bafa4a1a44d143beb0ae65664e574fe01243d82901a8428b4e41251320e",
+    "glass": "c9151cdc996b764b23ae0b0fc0ea527c5b4315af4d74f89052c1ecfc38fc0a24",
+    "steps": "6c36c7aa608e66065d37e73c5863118fad0f99d66f28da14307e23e9ffdb3588",
+    "voices": "0e45102d17749ee2af11f02b4d7878ceb3326ef799984d88e3010e5c64d86011",
+}
 # Source start, playback length, output rate, processing chain.
 # The card timings are provisional editable takes from the same genuine
 # recording, to be validated separately at a listening test.
@@ -70,6 +81,9 @@ def fetch_source(name, author, sound_id, dest):
     audio = get(audio_url, MAX_DOWNLOAD)
     if audio[:3] != b"ID3" and not (audio[0] == 0xff and (audio[1] & 0xe0) == 0xe0):
         raise RuntimeError(f"Not an MP3 recording: {page_url}")
+    digest = hashlib.sha256(audio).hexdigest()
+    if digest != SHA256[name]:
+        raise RuntimeError(f"CC0 recording checksum changed: {name}, {digest}")
     dest.write_bytes(audio)
     print(
         f"CC0 RECORDING: {name}, Freesound {sound_id}, {len(audio)} bytes, "
