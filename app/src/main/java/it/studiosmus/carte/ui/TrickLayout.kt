@@ -6,14 +6,17 @@ import android.widget.FrameLayout
 
 /** Measured geometry for two played cards, independent of game rules and Activity. */
 object TrickLayout {
-    fun bind(table: FrameLayout, lead: View?, reply: View?, hasStock: Boolean, dp: (Int) -> Int) {
+    fun bind(table: FrameLayout, lead: View?, reply: View?, hasStock: Boolean, dp: (Int) -> Int,
+             playedBy: Int = -1, collecting: Boolean = false, winner: Int = 0) {
         if (lead != null) {
             table.addView(lead)
-            CardMotion.reveal(lead, true, dp)
+            if (collecting) CardMotion.collect(lead, winner == 1, dp)
+            else CardMotion.reveal(lead, playedBy == 1, dp)
         }
         if (reply != null) {
             table.addView(reply)
-            CardMotion.reveal(reply, false, dp)
+            if (collecting) CardMotion.collect(reply, winner == 1, dp)
+            else CardMotion.reveal(reply, playedBy == 1, dp)
         }
         var previousWidth = -1
         var previousHeight = -1
