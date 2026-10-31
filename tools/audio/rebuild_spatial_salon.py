@@ -68,7 +68,8 @@ def render_applause(source: Path, dest: Path) -> None:
         "alimiter=limit=0.91,"
         "aecho=0.91:0.24:61|116:0.09|0.055,"
         "afade=t=in:st=0:d=0.06,"
-        "afade=t=out:st=2.29:d=0.31[out]"
+        "afade=t=out:st=2.29:d=0.31,"
+        "apad=whole_dur=2.60,atrim=duration=2.60[out]"
     )
     run(["ffmpeg", "-v", "error", "-nostdin", "-y",
          "-ss", "0", "-t", "2.6", "-i", str(source),
@@ -96,7 +97,10 @@ def main() -> None:
         for target, (source, start, seconds, filters) in SPATIAL.items():
             temporary = OUT / f"{target}.new.ogg"
             try:
-                render(input_paths[source], temporary, start, seconds, filters)
+                # Restrict echo tails to the defined clip duration, so
+                # scheduling and loop positions remain deterministic.
+                render(input_paths[source], temporary, start, seconds,
+                       filters + f",atrim=duration={seconds:.3f}")
                 temporary.replace(OUT / f"{target}.ogg")
             finally:
                 temporary.unlink(missing_ok=True)
