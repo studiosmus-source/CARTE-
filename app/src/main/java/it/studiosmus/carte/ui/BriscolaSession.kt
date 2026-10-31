@@ -30,11 +30,21 @@ class BriscolaSession(private val changed: () -> Unit,
     var playedBy = -1
         private set
 
+    private fun cueDealing(match: BriscolaGame) {
+        handler.postDelayed({
+            if (game === match && dealing) sound(CardSoundEvent.DEAL)
+        }, 305L)
+        handler.postDelayed({
+            if (game === match && dealing) sound(CardSoundEvent.DEAL)
+        }, 565L)
+    }
+
     fun start() {
         stop()
-        game = BriscolaGame()
+        val match = BriscolaGame()
+        game = match
         dealing = true
-        sound(CardSoundEvent.DEAL)
+        cueDealing(match)
         changed()
         handler.postDelayed({
             if (game != null) {
@@ -65,7 +75,9 @@ class BriscolaSession(private val changed: () -> Unit,
         if (first == null) {
             if (match.play(player, card)) {
                 playedBy = player
-                sound(CardSoundEvent.PLAY)
+                handler.postDelayed({
+                    if (game === match) sound(CardSoundEvent.PLAY)
+                }, 205L)
                 changed()
                 if (match.turn == 1) advanceComputer()
             }
@@ -74,7 +86,9 @@ class BriscolaSession(private val changed: () -> Unit,
         trickPreview = first.second to card
         playedBy = player
         trickResolving = true
-        sound(CardSoundEvent.PLAY)
+        handler.postDelayed({
+            if (game === match && trickResolving) sound(CardSoundEvent.PLAY)
+        }, 205L)
         changed()
         handler.postDelayed({
             if (game !== match) return@postDelayed
@@ -85,7 +99,9 @@ class BriscolaSession(private val changed: () -> Unit,
                 return@postDelayed
             }
             collecting = true
-            sound(CardSoundEvent.COLLECT)
+            handler.postDelayed({
+                if (game === match && collecting) sound(CardSoundEvent.COLLECT)
+            }, 230L)
             collectingCards = first.second to card
             lastWinner = match.leader
             trickPreview = null
@@ -96,7 +112,7 @@ class BriscolaSession(private val changed: () -> Unit,
                 collectingCards = null
                 trickResolving = false
                 dealing = !match.finished && match.remainingCards > 0
-                if (dealing) sound(CardSoundEvent.DEAL)
+                if (dealing) cueDealing(match)
                 changed()
                 if (dealing) {
                     handler.postDelayed({
