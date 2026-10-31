@@ -108,11 +108,12 @@ class MainActivity : Activity() {
         val right = view.paddingRight
         val bottom = view.paddingBottom
         view.setOnApplyWindowInsetsListener { target, insets ->
-            val bars = insets.getInsets(
-                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
-            )
-            target.setPadding(left + bars.left, top + bars.top,
-                right + bars.right, bottom + bars.bottom)
+            // Legacy getters work down to the app's minSdk 26.
+            @Suppress("DEPRECATION")
+            target.setPadding(left + insets.systemWindowInsetLeft,
+                top + insets.systemWindowInsetTop,
+                right + insets.systemWindowInsetRight,
+                bottom + insets.systemWindowInsetBottom)
             insets
         }
         setContentView(view)
