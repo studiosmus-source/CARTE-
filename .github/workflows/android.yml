@@ -74,6 +74,8 @@ jobs:
           PY
       - name: Import real CC0 card handling recordings
         run: python3 tools/audio/import_kenney_cards.py
+      - name: Import recorded CC0 fireplace
+        run: python3 tools/audio/import_real_fireplace.py
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build debug APK
@@ -102,7 +104,7 @@ jobs:
           python3 - <<'PY'
           from zipfile import ZipFile
           apk = 'app/build/outputs/apk/debug/app-debug.apk'
-          expected = ('salon_jazz', 'salon_card_deal', 'salon_card_play', 'salon_card_collect')
+          expected = ('salon_jazz', 'salon_fireplace', 'salon_card_deal', 'salon_card_play', 'salon_card_collect')
           with ZipFile(apk) as z:
               for name in expected:
                   matches = [entry for entry in z.namelist()
