@@ -2,6 +2,16 @@
 
 Audio decisions approved 31 October 2026. This folder contains an **optional local bundle importer**, not generated or fake sound effects.
 
+## Real fireplace fallback
+
+When the bundle does not already supply salon_fireplace.ogg, CI fetches the
+real, loopable fireplace recording in [Muges / ambientsounds](https://github.com/Muges/ambientsounds),
+whose README attributes the original CC0 recording to *inchadney* on Freesound.
+It is included offline in the APK and replaces the old synthesized hiss; the
+app never streams it. This is a provisional listening candidate, and can be
+replaced without modifying source by an approved Freesound Davor recording in
+the audio ZIP.
+
 ## Real card foley fallback
 
 If the user-provided ZIP does not contain three card event recordings, the
