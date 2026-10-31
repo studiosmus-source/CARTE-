@@ -53,6 +53,8 @@ jobs:
             python3 tools/fetch_neapolitan_cards.py
           fi
           test "$(find app/src/main/assets/cards -maxdepth 1 -name '*.jpg' | wc -l)" -eq 40
+      - name: Inspect public approved Freesound preview availability
+        run: python3 tools/audio/probe_previews.py
       - name: Import approved salon recordings if bundle supplied
         run: |
           python3 tools/audio/import_salon_audio.py
