@@ -259,7 +259,9 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
      * The same layout is used for brief collection animations.
      */
     fun tableCards(cards: List<Card>, collectTo: Boolean? = null): View {
-        val tiles = cards.map { cardTile(it) }
+        val tiles = cards.map { card ->
+            cardTile(card).apply { rotation = ((card.id.hashCode() and 7) - 3) * .65f }
+        }
         return AdaptiveCardGrid(context, tiles).apply {
             if (collectTo != null) {
                 tiles.forEachIndexed { index, tile ->
@@ -283,6 +285,10 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             val params = LinearLayout.LayoutParams(dp(78), dp(129))
             params.setMargins(dp(3), 0, dp(3), 0)
             row.addView(tile, params)
+            // A small, stable fan: physical cards are not perfectly parallel.
+            val offset = index - (cards.size - 1) / 2f
+            tile.rotation = offset * 4.5f
+            tile.translationY = kotlin.math.abs(offset) * dp(5)
             if (dealFrom != null) CardMotion.deal(tile, dealFrom, ::dp, index * 85L)
             if (collectTo != null) CardMotion.collect(tile, collectTo, ::dp, index * 45L)
         }
@@ -296,6 +302,53 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
         }
     }
 
+    fun cardBackTile(index: Int = 0): View = object : View(context) {
+        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            val w = width.toFloat()
+            val h = height.toFloat()
+            paint.style = android.graphics.Paint.Style.FILL
+            paint.color = Color.rgb(95, 31, 37)
+            canvas.drawRoundRect(1f, 1f, w - 1f, h - 1f, dp(7).toFloat(), dp(7).toFloat(), paint)
+            paint.style = android.graphics.Paint.Style.STROKE
+            paint.strokeWidth = dp(2).toFloat()
+            paint.color = gold
+            canvas.drawRoundRect(dp(5).toFloat(), dp(5).toFloat(),
+                w - dp(5), h - dp(5), dp(4).toFloat(), dp(4).toFloat(), paint)
+            paint.strokeWidth = dp(1).toFloat()
+            val step = dp(12).toFloat()
+            var y = dp(15).toFloat()
+            while (y < h - dp(10)) {
+                var x = dp(14).toFloat()
+                while (x < w - dp(10)) {
+                    canvas.drawCircle(x, y, dp(2).toFloat(), paint)
+                    x += step
+                }
+                y += step
+            }
+            paint.style = android.graphics.Paint.Style.FILL
+            paint.color = ivory
+            paint.textAlign = android.graphics.Paint.Align.CENTER
+            paint.typeface = Typeface.SERIF
+            paint.textSize = dp(20).toFloat()
+            canvas.drawText("✦", w / 2f, h / 2f + dp(7), paint)
+            drawWornBack(canvas, w, h, index)
+        }
+    }.apply {
+        background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(Color.rgb(95, 31, 37))
+            cornerRadius = dp(6).toFloat()
+        }
+        clipToOutline = true
+        elevation = dp(6).toFloat()
+        contentDescription = "Carta coperta"
+    }
+
+    /** The computer physically puts a card face down and turns it over. */
+    fun playedCard(card: Card, computer: Boolean): View =
+        if (computer) FlipCardView(context, cardTile(card), cardBackTile(card.id.hashCode()))
+        else cardTile(card)
+
     fun cardBackRow(count: Int, animateDeal: Boolean = false): View {
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -305,47 +358,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             setPadding(dp(8), dp(10), dp(8), dp(10))
         }
         repeat(count) { index ->
-            val back = object : View(context) {
-                private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-                override fun onDraw(canvas: android.graphics.Canvas) {
-                    val w = width.toFloat()
-                    val h = height.toFloat()
-                    paint.style = android.graphics.Paint.Style.FILL
-                    paint.color = Color.rgb(95, 31, 37)
-                    canvas.drawRoundRect(1f, 1f, w - 1f, h - 1f, dp(7).toFloat(), dp(7).toFloat(), paint)
-                    paint.style = android.graphics.Paint.Style.STROKE
-                    paint.strokeWidth = dp(2).toFloat()
-                    paint.color = gold
-                    canvas.drawRoundRect(dp(5).toFloat(), dp(5).toFloat(),
-                        w - dp(5), h - dp(5), dp(4).toFloat(), dp(4).toFloat(), paint)
-                    paint.strokeWidth = dp(1).toFloat()
-                    val step = dp(12).toFloat()
-                    var y = dp(15).toFloat()
-                    while (y < h - dp(10)) {
-                        var x = dp(14).toFloat()
-                        while (x < w - dp(10)) {
-                            canvas.drawCircle(x, y, dp(2).toFloat(), paint)
-                            x += step
-                        }
-                        y += step
-                    }
-                    paint.style = android.graphics.Paint.Style.FILL
-                    paint.color = ivory
-                    paint.textAlign = android.graphics.Paint.Align.CENTER
-                    paint.typeface = Typeface.SERIF
-                    paint.textSize = dp(20).toFloat()
-                    canvas.drawText("✦", w / 2f, h / 2f + dp(7), paint)
-                    drawWornBack(canvas, w, h, index)
-                }
-            }.apply {
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Color.rgb(95, 31, 37))
-                    cornerRadius = dp(6).toFloat()
-                }
-                clipToOutline = true
-                elevation = dp(6).toFloat()
-                contentDescription = "Carta coperta dell'avversario"
-            }
+            val back = cardBackTile(index)
             val params = LinearLayout.LayoutParams(dp(72), dp(98))
             params.setMargins(dp(4), 0, dp(4), 0)
             row.addView(back, params)
@@ -353,6 +366,4 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
         }
         return row
     }
-
-
 }
