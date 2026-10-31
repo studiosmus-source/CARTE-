@@ -58,3 +58,32 @@ uscita in dissolvenza. Le successive mani di Scopa non tornano al nero.
 Non distribuire come release definitiva finché il livello dei suoni, il
 carattere del camino, il montaggio delle carte, gli eventi casuali e il
 loop musicale non sono stati approvati con un test funzionale.
+
+
+## v0.1.8 — ambienti che suonano come un salotto reale
+
+Le registrazioni non vengono rigenerate artificialmente in riproduzione.
+`rebuild_spatial_salon.py` usa i sorgenti CC0 già verificati (con hash
+SHA-256 bloccati) e genera in fase di build una **sola** versione finale per
+ciascun suono. Il vecchio processamento eccessivo di `salon_fireplace`
+(lowpass 2,8 kHz e riduzione del rumore) non è più usato: la nuova traccia
+mantiene gli schiocchi della legna ed evita un fruscio sintetico.
+
+Le quattro conversazioni intermittenti hanno un fade-in di 0,65–0,72 s,
+banda attenuata a 2,25–2,5 kHz e brevi riflessioni della stanza. Bicchieri,
+sedie e passi hanno trattamenti spaziali specifici e posizioni leggermente
+variabili. L'audio non invade il primo piano delle carte.
+
+L'applauso usa esclusivamente battiti reali dalla registrazione CC0
+approvata, con due sovrapposizioni brevi e sfalsate per simulare il piccolo
+gruppo presente nel salotto, senza effetti da stadio. Il cursore
+«Conversazioni» resta invariato.
+
+Nel tavolo fotografico, due lievi pozze ambrate sul bordo sinistro e
+sul panno variano **in intensità e posizione** a frequenze diverse,
+solo quando il camino è acceso. Il ritmo visivo è indipendente dal volume
+del camino. La v0.1.8 non cambia le texture, le carte o le regole.
+
+CI deve eseguire `check_spatial_salon.py`, `check_card_cues.py` e
+`check_whispers.py` prima dei test Kotlin e dell'APK. Il collaudo audio
+nell'ambiente reale resta necessario per approvare gusto e distanza.
