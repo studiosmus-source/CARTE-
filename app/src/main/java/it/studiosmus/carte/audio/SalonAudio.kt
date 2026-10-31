@@ -275,6 +275,26 @@ class SalonAudio(
         return true
     }
 
+    /** A brief believable incident, not independent randomly overlapping noises. */
+    private fun playRoomMovement() {
+        if (random.nextInt(10) == 0 && playOnce("salon_door")) return
+        if (!playOnce("salon_chair")) {
+            playOnce("salon_footsteps")
+            return
+        }
+        if (!hasRecording("salon_footsteps") || random.nextInt(4) == 0) return
+        val session = generation
+        val follow = object : Runnable {
+            override fun run() {
+                pending.remove(this)
+                if (running && session == generation && scene == Scene.SALON)
+                    playOnce("salon_footsteps")
+            }
+        }
+        pending.add(follow)
+        handler.postDelayed(follow, random.nextLong(1200L, 2300L))
+    }
+
     private fun schedule(event: AmbienceScheduler.Event) {
         if (!running) return
         val task = object : Runnable {
@@ -282,14 +302,11 @@ class SalonAudio(
                 pending.remove(this)
                 if (!running) return
                 if (scene == Scene.SALON && transientCount == 0) {
-                    val name = when (event) {
-                        AmbienceScheduler.Event.GLASSWARE -> "salon_glassware"
-                        AmbienceScheduler.Event.CONVERSATION -> "salon_conversation"
-                        AmbienceScheduler.Event.DOOR -> listOf(
-                            "salon_chair", "salon_footsteps", "salon_door"
-                        ).random(random)
+                    when (event) {
+                        AmbienceScheduler.Event.GLASSWARE -> playOnce("salon_glassware")
+                        AmbienceScheduler.Event.CONVERSATION -> playOnce("salon_conversation")
+                        AmbienceScheduler.Event.DOOR -> playRoomMovement()
                     }
-                    playOnce(name)
                 }
                 schedule(event)
             }
