@@ -11,104 +11,230 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.view.View
 import android.widget.FrameLayout
+import kotlin.math.hypot
+import kotlin.math.min
 import kotlin.math.sin
+import kotlin.random.Random
 
 /**
- * A quiet, material table: dark walnut rail, deep woven green felt and warm
- * overhead light. All details are drawn once per view, without bitmap assets,
- * frame loops or expensive runtime blur.
+ * Portrait-adaptive overhead salon table, inspired by the supplied eight-sided
+ * walnut / green felt / Persian rug reference. Procedural paint avoids large
+ * bitmaps, network access, frame loops and extra asset dependencies.
+ *
+ * This view is only the background. Game cards, stock and touch targets remain
+ * independent children of the FrameLayout.
  */
 class SalonTable(context: Context) : FrameLayout(context) {
     private val density = resources.displayMetrics.density
-    private val rim = 14f * density
+    private fun dp(value: Float) = value * density
+
+    private fun octagon(rect: RectF, cutX: Float, cutY: Float): Path {
+        val x = min(cutX, rect.width() * .46f)
+        val y = min(cutY, rect.height() * .46f)
+        return Path().apply {
+            moveTo(rect.left + x, rect.top)
+            lineTo(rect.right - x, rect.top)
+            lineTo(rect.right, rect.top + y)
+            lineTo(rect.right, rect.bottom - y)
+            lineTo(rect.right - x, rect.bottom)
+            lineTo(rect.left + x, rect.bottom)
+            lineTo(rect.left, rect.bottom - y)
+            lineTo(rect.left, rect.top + y)
+            close()
+        }
+    }
+
+    private fun corners(rect: RectF, cutX: Float, cutY: Float): List<Pair<Float, Float>> {
+        val x = min(cutX, rect.width() * .46f)
+        val y = min(cutY, rect.height() * .46f)
+        return listOf(
+            rect.left + x to rect.top, rect.right - x to rect.top,
+            rect.right to rect.top + y, rect.right to rect.bottom - y,
+            rect.right - x to rect.bottom, rect.left + x to rect.bottom,
+            rect.left to rect.bottom - y, rect.left to rect.top + y
+        )
+    }
+
     private val surface = object : View(context) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private fun fill(canvas: Canvas, color: Int) {
+            paint.reset()
+            paint.isAntiAlias = true
+            paint.color = color
+            paint.style = Paint.Style.FILL
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+        }
+
         override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
             val w = width.toFloat()
             val h = height.toFloat()
-            if (w <= 0f || h <= 0f) return
-            val outer = RectF(0f, 0f, w, h)
-            val felt = RectF(rim, rim, w - rim, h - rim)
-            val radius = 28f * density
-            paint.style = Paint.Style.FILL
+            if (w <= dp(90f) || h <= dp(90f)) return
+
+            // A dim wooden floor remains visible in the exposed rug corners.
+            fill(canvas, Color.rgb(24, 17, 14))
+            for (i in 0..10) {
+                val y = i * h / 10f
+                paint.shader = LinearGradient(0f, y, w, y + h / 10f,
+                    intArrayOf(Color.rgb(48, 30, 22), Color.rgb(29, 20, 17),
+                        Color.rgb(41, 27, 21)), null, Shader.TileMode.CLAMP)
+                canvas.drawRect(0f, y, w, y + h / 10f - dp(1f), paint)
+                paint.shader = null
+                paint.color = Color.argb(75, 8, 5, 3)
+                canvas.drawRect(0f, y, w, y + dp(.7f), paint)
+            }
+
+            // Old patterned rug below the table; its patterned corners are
+            // visible through the octagonal cutouts rather than under cards.
+            val rug = RectF(dp(8f), dp(3f), w - dp(8f), h - dp(3f))
             paint.shader = LinearGradient(0f, 0f, w, h,
-                intArrayOf(Color.rgb(106, 65, 36), Color.rgb(46, 27, 18),
-                    Color.rgb(85, 49, 29), Color.rgb(30, 19, 15)),
-                null, Shader.TileMode.CLAMP)
-            canvas.drawRoundRect(outer, radius, radius, paint)
+                Color.rgb(98, 51, 44), Color.rgb(42, 30, 39), Shader.TileMode.CLAMP)
+            canvas.drawRect(rug, paint)
             paint.shader = null
-            paint.color = Color.argb(115, 13, 9, 7)
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 2f * density
-            canvas.drawRoundRect(RectF(rim * .45f, rim * .45f,
-                w - rim * .45f, h - rim * .45f), radius * .8f, radius * .8f, paint)
-            paint.style = Paint.Style.FILL
-
-            // Subtle wood grain, deterministic and deliberately non-repeating.
-            canvas.save()
-            val railClip = Path().apply { addRoundRect(outer, radius, radius, Path.Direction.CW) }
-            canvas.clipPath(railClip)
-            for (i in 0 until 26) {
-                val y = h * i / 26f
-                paint.color = Color.argb(if (i % 3 == 0) 21 else 11, 198, 139, 77)
-                paint.strokeWidth = density * .65f
+            for (inset in listOf(5f, 11f, 16f, 22f)) {
+                val frame = RectF(rug.left + dp(inset), rug.top + dp(inset),
+                    rug.right - dp(inset), rug.bottom - dp(inset))
+                paint.color = if (inset == 5f || inset == 16f)
+                    Color.rgb(149, 116, 79) else Color.rgb(34, 34, 39)
+                paint.strokeWidth = if (inset == 11f) dp(3f) else dp(1.3f)
                 paint.style = Paint.Style.STROKE
-                val path = Path().apply {
-                    moveTo(0f, y)
-                    cubicTo(w * .3f, y + sin(i * 2.1).toFloat() * density * 5,
-                        w * .7f, y - density * 4, w, y + density * 2)
-                }
-                canvas.drawPath(path, paint)
+                canvas.drawRect(frame, paint)
             }
-            canvas.restore()
             paint.style = Paint.Style.FILL
-            paint.color = Color.rgb(13, 45, 35)
-            canvas.drawRoundRect(felt, radius * .65f, radius * .65f, paint)
-            paint.shader = LinearGradient(0f, rim, w, h - rim,
-                intArrayOf(Color.rgb(30, 83, 65), Color.rgb(23, 67, 54),
-                    Color.rgb(16, 49, 42)), null, Shader.TileMode.CLAMP)
-            canvas.drawRoundRect(felt, radius * .65f, radius * .65f, paint)
+            val rugRandom = Random(1601)
+            repeat(260) {
+                val x = rug.left + rugRandom.nextFloat() * rug.width()
+                val y = rug.top + rugRandom.nextFloat() * rug.height()
+                val radius = dp(1f + rugRandom.nextFloat() * 2.2f)
+                paint.color = if (it % 3 == 0) Color.argb(155, 184, 133, 88)
+                    else Color.argb(120, 36, 49, 54)
+                canvas.drawCircle(x, y, radius, paint)
+            }
+
+            // Corners remain proportionate on a narrow Android display.
+            val marginX = dp(2f)
+            val marginY = dp(12f)
+            val outer = RectF(marginX, marginY, w - marginX, h - marginY)
+            val rail = min(dp(34f), min(w * .095f, h * .095f))
+            val cutX = outer.width() * .235f
+            val cutY = outer.height() * .175f
+            val inner = RectF(outer.left + rail, outer.top + rail,
+                outer.right - rail, outer.bottom - rail)
+            val outerShape = octagon(outer, cutX, cutY)
+            val innerShape = octagon(inner, cutX * .79f, cutY * .79f)
+
+            // Low shadow puts the entire real tabletop above the rug.
+            canvas.save()
+            canvas.translate(0f, dp(5f))
+            paint.color = Color.argb(170, 3, 2, 1)
+            paint.shader = null
+            canvas.drawPath(outerShape, paint)
+            canvas.restore()
+
+            // Warm walnut veneer with strong depth and edge bevel.
+            paint.shader = LinearGradient(0f, 0f, w, h,
+                intArrayOf(Color.rgb(181, 111, 62), Color.rgb(104, 60, 33),
+                    Color.rgb(145, 83, 43), Color.rgb(61, 33, 22)),
+                null, Shader.TileMode.CLAMP)
+            canvas.drawPath(outerShape, paint)
             paint.shader = null
 
+            // Grain runs in the direction of each of the eight rail segments,
+            // rather than horizontally across the whole table.
+            val vertices = corners(outer, cutX, cutY)
             canvas.save()
-            val feltClip = Path().apply {
-                addRoundRect(felt, radius * .65f, radius * .65f, Path.Direction.CW)
-            }
-            canvas.clipPath(feltClip)
-            // Woven micro-fibres, subtle enough not to compete with the cards.
-            val step = 6f * density
-            var y = rim
-            var row = 0
-            while (y < h - rim) {
-                var x = rim + (row % 2) * step * .5f
-                while (x < w - rim) {
-                    paint.color = Color.argb(19, 150, 177, 135)
-                    paint.strokeWidth = .55f * density
-                    canvas.drawLine(x, y, x + 1.7f * density, y + .8f * density, paint)
-                    x += step
+            canvas.clipPath(outerShape)
+            canvas.clipOutPath(innerShape) // API 26+, the app's minSdk.
+            val grain = Random(8523)
+            for (edge in 0 until vertices.size) {
+                val a = vertices[edge]
+                val b = vertices[(edge + 1) % vertices.size]
+                val dx = b.first - a.first
+                val dy = b.second - a.second
+                val length = hypot(dx, dy).coerceAtLeast(1f)
+                val nx = -dy / length
+                val ny = dx / length
+                for (line in 0 until 85) {
+                    val offset = rail * 1.65f * (line + .5f) / 85f
+                    val wobble = (grain.nextFloat() - .5f) * dp(5f)
+                    val x1 = a.first + nx * offset
+                    val y1 = a.second + ny * offset
+                    val x2 = b.first + nx * offset
+                    val y2 = b.second + ny * offset
+                    val stroke = Path().apply {
+                        moveTo(x1, y1)
+                        cubicTo(x1 + dx * .33f + nx * wobble,
+                            y1 + dy * .33f + ny * wobble,
+                            x1 + dx * .7f - nx * wobble * .7f,
+                            y1 + dy * .7f - ny * wobble * .7f,
+                            x2, y2)
+                    }
+                    paint.style = Paint.Style.STROKE
+                    paint.strokeWidth = dp(if (line % 9 == 0) .9f else .32f)
+                    paint.color = if (line % 4 == 0)
+                        Color.argb(58, 20, 9, 6) else Color.argb(37, 241, 169, 96)
+                    canvas.drawPath(stroke, paint)
                 }
-                y += step
-                row++
             }
-            paint.shader = RadialGradient(w * .39f, h * .19f,
-                maxOf(w, h) * .83f,
-                intArrayOf(Color.argb(53, 248, 189, 111),
-                    Color.argb(10, 181, 145, 88), Color.TRANSPARENT),
-                null, Shader.TileMode.CLAMP)
-            canvas.drawRect(felt, paint)
+            canvas.restore()
+            paint.style = Paint.Style.STROKE
             paint.shader = null
-            paint.shader = RadialGradient(w * .5f, h * .43f,
-                maxOf(w, h) * .74f,
-                intArrayOf(Color.TRANSPARENT, Color.argb(105, 4, 15, 13)),
+            paint.strokeWidth = dp(2.4f)
+            paint.color = Color.argb(155, 236, 174, 101)
+            canvas.drawPath(outerShape, paint)
+            paint.strokeWidth = dp(1.5f)
+            paint.color = Color.argb(190, 32, 15, 9)
+            canvas.drawPath(innerShape, paint)
+
+            // The panno is a genuinely eight-sided insert inside the wood.
+            paint.style = Paint.Style.FILL
+            paint.shader = LinearGradient(0f, inner.top, w * .75f, inner.bottom,
+                intArrayOf(Color.rgb(43, 113, 93), Color.rgb(24, 77, 65),
+                    Color.rgb(13, 51, 46)), null, Shader.TileMode.CLAMP)
+            canvas.drawPath(innerShape, paint)
+            paint.shader = null
+            canvas.save()
+            canvas.clipPath(innerShape)
+            val feltRandom = Random(2244)
+            repeat(2300) {
+                val x = inner.left + feltRandom.nextFloat() * inner.width()
+                val y = inner.top + feltRandom.nextFloat() * inner.height()
+                paint.style = Paint.Style.STROKE
+                paint.strokeWidth = dp(.33f)
+                paint.color = if (it % 3 == 0) Color.argb(30, 190, 199, 164)
+                    else Color.argb(27, 5, 29, 23)
+                canvas.drawLine(x, y, x + dp(.9f), y + dp(.5f), paint)
+            }
+            paint.style = Paint.Style.FILL
+            paint.shader = RadialGradient(w * .42f, h * .17f,
+                maxOf(w, h) * .9f,
+                intArrayOf(Color.argb(69, 221, 194, 124),
+                    Color.argb(16, 159, 147, 93), Color.TRANSPARENT),
                 null, Shader.TileMode.CLAMP)
-            canvas.drawRect(felt, paint)
+            canvas.drawRect(inner, paint)
+            paint.shader = null
+            paint.shader = RadialGradient(w * .5f, h * .47f,
+                maxOf(w, h) * .77f,
+                intArrayOf(Color.TRANSPARENT, Color.argb(100, 3, 24, 22)),
+                null, Shader.TileMode.CLAMP)
+            canvas.drawRect(inner, paint)
             paint.shader = null
             canvas.restore()
+
+            // Thin brass seam + dark inner rim define physical thickness.
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = dp(3.2f)
+            paint.color = Color.argb(165, 18, 10, 6)
+            canvas.drawPath(innerShape, paint)
+            paint.strokeWidth = dp(.95f)
+            paint.color = Color.rgb(185, 150, 100)
+            canvas.drawPath(innerShape, paint)
+            paint.style = Paint.Style.FILL
+            paint.shader = null
         }
     }
 
     init {
-        setWillNotDraw(false)
         clipChildren = false
         clipToPadding = false
         addView(surface, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
