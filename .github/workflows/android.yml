@@ -33,10 +33,9 @@ jobs:
           gradle-version: '8.9'
       - name: Restore stable TEST-ONLY debug signature
         run: |
-          mkdir -p "$HOME/.android"
-          base64 --decode tools/signing/TEST_ONLY_debug_keystore.b64 > "$HOME/.android/debug.keystore"
-          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey > /dev/null
-          echo "Stable non-production signing key loaded (not for release)."
+          base64 --decode tools/signing/TEST_ONLY_debug_keystore.b64 > app/ci-debug.keystore
+          keytool -list -keystore app/ci-debug.keystore -storepass android -alias androiddebugkey > /dev/null
+          echo "Explicit stable non-production signing key loaded for Gradle."
       - name: Install approved worn card artwork or verified legacy deck
         run: |
           python3 tools/cards/import_cards.py
@@ -73,6 +72,11 @@ jobs:
         run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
+      - name: Verify stable debug APK signing fingerprint
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | tee apk-signing.txt
+          grep -qi "41e4b186470088201ddfd71fc9c9af1100e120c7045f15e173f30006ab22fbbe" apk-signing.txt
+          echo "Verified: APK matches the stable test-only certificate."
       - name: Verify all 40 HD cards are actually inside the APK
         run: |
           python3 - <<'PY'
