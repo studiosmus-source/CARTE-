@@ -31,27 +31,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Extract supplied HD card archive or fetch original images
+      - name: Install approved worn card artwork or verified legacy deck
         run: |
-          if [ -f app/src/main/assets/CARTE-HD-assets.zip ]; then
-            python3 - <<'PY'
-          from pathlib import Path
-          from zipfile import ZipFile
-          archive = Path("app/src/main/assets/CARTE-HD-assets.zip")
-          with ZipFile(archive) as z:
-              expected = {f"app/src/main/assets/cards/{suit}_{n:02d}.jpg" for suit in ("coppe", "denari", "bastoni", "spade") for n in range(1, 11)}
-              names = {n for n in z.namelist() if not n.endswith("/")}
-              assert names == expected, f"Archive card set mismatch: {sorted(expected - names)}"
-              for name in expected:
-                  data = z.read(name)
-                  assert len(data) > 10000 and data[:3] == bytes((255, 216, 255)), f"Invalid card: {name}"
-                  dest = Path(name)
-                  dest.parent.mkdir(parents=True, exist_ok=True)
-                  dest.write_bytes(data)
-          PY
-          else
-            python3 tools/fetch_neapolitan_cards.py
-          fi
+          python3 tools/cards/import_cards.py
           test "$(find app/src/main/assets/cards -maxdepth 1 -name '*.jpg' | wc -l)" -eq 40
       - name: Import approved salon recordings if bundle supplied
         run: |
@@ -98,7 +80,23 @@ jobs:
                   assert info.file_size > 10000, f"Invalid card asset: {name}"
                   with archive.open(name) as card:
                       assert card.read(3) == bytes((255, 216, 255)), f"Not JPEG: {name}"
-          print("Verified: installable APK contains all 40 JPEG card assets.")
+          # If the approved vintage card archives are present, validate
+          # byte-for-byte inclusion in the compiled APK (not just file names).
+          from pathlib import Path
+          for part in ("tools/cards/CARTE-usura-parte-1.zip",
+                       "tools/cards/CARTE-usura-parte-2.zip"):
+              path = Path(part)
+              if not path.is_file():
+                  continue
+              with ZipFile(path) as originals:
+                  for source_name in originals.namelist():
+                      compiled_name = source_name.removeprefix("app/src/main/")
+                      assert archive is not None
+                      with ZipFile(apk) as built:
+                          assert originals.read(source_name) == built.read(compiled_name), (
+                              f"Approved artwork differs inside APK: {compiled_name}"
+                          )
+          print("Verified: APK contains forty HD JPEG cards and any approved vintage images unchanged.")
           PY
       - name: Verify recorded audio inside the APK
         run: |
