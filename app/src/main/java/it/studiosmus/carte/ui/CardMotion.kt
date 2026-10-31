@@ -21,6 +21,7 @@ object CardMotion {
     }
 
     fun deal(card: View?, fromAbove: Boolean, dp: (Int) -> Int, delay: Long = 0L) {
+        if (card == null) return
         // Both hands get cards from the tabletop stock, rather than appearing
         // out of nothing at the top/bottom edge.
         slide(card, if (fromAbove) dp(85).toFloat() else -dp(80).toFloat(),
