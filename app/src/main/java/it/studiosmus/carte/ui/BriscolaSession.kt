@@ -20,6 +20,10 @@ class BriscolaSession(private val changed: () -> Unit) {
         private set
     var collecting = false
         private set
+    var lastWinner = 0
+        private set
+    var playedBy = -1
+        private set
 
     fun start() {
         stop()
@@ -42,6 +46,8 @@ class BriscolaSession(private val changed: () -> Unit) {
         trickResolving = false
         dealing = false
         collecting = false
+        lastWinner = 0
+        playedBy = -1
         game = null
     }
 
@@ -51,12 +57,14 @@ class BriscolaSession(private val changed: () -> Unit) {
         val first = match.lead
         if (first == null) {
             if (match.play(player, card)) {
+                playedBy = player
                 changed()
                 if (match.turn == 1) advanceComputer()
             }
             return
         }
         trickPreview = first.second to card
+        playedBy = player
         trickResolving = true
         changed()
         handler.postDelayed({
@@ -68,6 +76,7 @@ class BriscolaSession(private val changed: () -> Unit) {
                 return@postDelayed
             }
             collecting = true
+            lastWinner = match.leader
             trickPreview = null
             changed()
             handler.postDelayed({
