@@ -115,8 +115,20 @@ class BriscolaScreen(
         }
         TrickLayout.bind(
             table, leadView, replyView, match.remainingCards > 0,
-            { dp(it) }, session.playedBy, session.collecting, session.lastWinner
+            { dp(it) }, session.playedBy, session.collecting,
+            session.lastWinner, animateReply = !session.trickResolving
         )
+        if (session.trickResolving && !session.collecting &&
+            session.playedBy == 1 && replyView != null) {
+            val index = match.hands[1].indexOf(session.trickPreview?.second)
+            val origin = (opponentBackRow as? LinearLayout)
+                ?.takeIf { index in 0 until it.childCount }
+                ?.getChildAt(index)
+            if (origin != null) {
+                origin.alpha = 0f
+                CardMotion.playFromHand(replyView, origin)
+            } else CardMotion.reveal(replyView, true, ::dp)
+        }
         val tableMessage = when {
             session.dealing -> "DISTRIBUZIONE DELLE CARTE"
             session.collecting -> "RACCOLTA DELLA PRESA"
@@ -146,6 +158,18 @@ class BriscolaScreen(
                 if (match.turn == 0 && !session.trickResolving && !session.dealing && !session.collecting) session.play(0, card)
             })
             root.addView(playerRow)
+            if (session.trickResolving && !session.collecting &&
+                session.playedBy == 0 && replyView != null) {
+                val index = match.hands[0].indexOf(session.trickPreview?.second)
+                val origin = (playerRow as? android.widget.HorizontalScrollView)
+                    ?.getChildAt(0)?.let { it as? LinearLayout }
+                    ?.takeIf { index in 0 until it.childCount }
+                    ?.getChildAt(index)
+                if (origin != null) {
+                    origin.alpha = 0f
+                    CardMotion.playFromHand(replyView, origin)
+                } else CardMotion.reveal(replyView, false, ::dp)
+            }
             if (session.dealing && stockOrigin != null) {
                 (playerRow as? android.widget.HorizontalScrollView)
                     ?.getChildAt(0)?.let { hand ->
