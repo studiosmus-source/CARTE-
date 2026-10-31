@@ -250,11 +250,15 @@ class MainActivity : Activity() {
             })
         }
         root.addView(Button(this).apply {
-            text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"
+            text = if (fireplaceEnabled) "SPEGNI CAMINO" else "ACCENDI CAMINO"
             setOnClickListener {
                 fireplaceEnabled = !fireplaceEnabled
                 saveAmbience()
-                text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"
+                // Apply the switch to both the live room audio and the next
+                // re-rendered table reflection; previously this did not notify
+                // SalonAudio and could leave a lit but silent fireplace.
+                updateFireplacePlayback()
+                text = if (fireplaceEnabled) "SPEGNI CAMINO" else "ACCENDI CAMINO"
             }
         })
         slider("Camino", ambience.fireplace) { ambience = ambience.copy(fireplace = it) }
