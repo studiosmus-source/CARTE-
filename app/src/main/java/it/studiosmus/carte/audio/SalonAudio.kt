@@ -237,7 +237,9 @@ class SalonAudio(
     private fun volumeFor(name: String): Float = when (name) {
         "salon_jazz" -> settings.jazz * 0.82f * musicPerspective
         "salon_fireplace" -> if (fireplaceEnabled) settings.fireplace * 0.40f * roomPerspective else 0f
-        "salon_conversation" -> settings.conversations * 0.52f * roomPerspective
+        "salon_conversation" -> settings.conversationGain(roomPerspective)
+        "salon_whisper_01", "salon_whisper_02", "salon_whisper_03",
+        "salon_whisper_04" -> settings.conversationGain(roomPerspective)
         "salon_glassware" -> settings.glassware * 0.52f * roomPerspective
         "salon_door", "salon_chair", "salon_footsteps" ->
             settings.doors * 0.40f * roomPerspective
