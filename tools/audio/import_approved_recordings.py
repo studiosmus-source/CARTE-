@@ -36,22 +36,16 @@ SHA256 = {
     "steps": "6c36c7aa608e66065d37e73c5863118fad0f99d66f28da14307e23e9ffdb3588",
     "voices": "0e45102d17749ee2af11f02b4d7878ceb3326ef799984d88e3010e5c64d86011",
 }
-# Remaining ambience clips. Real card foley is built independently by
-# build_card_variations.py; no legacy duplicated card clips are reintroduced.
+# This is now ONLY for the isolated legacy conversation preview.
+# The spatial mixes of fire, four short whispers, glasses, chairs, footsteps
+# and applause have one authoritative renderer: rebuild_spatial_salon.py.
+# Keeping those paths in this table would create competing old/new treatments.
 CLIPS = {
-    "salon_fireplace": ("fire", 0.0, 70.0, "highpass=f=90,lowpass=f=2800,afftdn=nr=12:nf=-40,loudnorm=I=-24:TP=-5:LRA=15"),
-    "salon_conversation": ("voices", 0.0, 19.0, "highpass=f=150,lowpass=f=4000,loudnorm=I=-22:TP=-4:LRA=12"),
-    # Four genuine, non-identical sections of the verified conversation.
-    # Fade both ends to prevent cuts; occasional playback overlap happens in
-    # SalonAudio.kt, not by mixing permanently into a noisy ambient loop.
-    "salon_whisper_01": ("voices", 0.8, 3.6, "highpass=f=180,lowpass=f=3800,loudnorm=I=-23:TP=-5:LRA=10,afade=t=in:st=0:d=0.20,afade=t=out:st=3.15:d=0.45"),
-    "salon_whisper_02": ("voices", 4.9, 4.0, "highpass=f=180,lowpass=f=3800,loudnorm=I=-23:TP=-5:LRA=10,afade=t=in:st=0:d=0.22,afade=t=out:st=3.5:d=0.5"),
-    "salon_whisper_03": ("voices", 9.5, 3.8, "highpass=f=180,lowpass=f=3800,loudnorm=I=-23:TP=-5:LRA=10,afade=t=in:st=0:d=0.20,afade=t=out:st=3.3:d=0.5"),
-    "salon_whisper_04": ("voices", 14.0, 4.1, "highpass=f=180,lowpass=f=3800,loudnorm=I=-23:TP=-5:LRA=10,afade=t=in:st=0:d=0.22,afade=t=out:st=3.55:d=0.55"),
-    "salon_glassware": ("glass", 0.0, 1.26, "highpass=f=130,loudnorm=I=-19:TP=-4:LRA=10"),
-    "salon_chair": ("chair", 0.0, 4.0, "highpass=f=100,lowpass=f=5500,loudnorm=I=-20:TP=-4:LRA=10"),
-    "salon_footsteps": ("steps", 2.0, 4.0, "highpass=f=95,lowpass=f=5100,loudnorm=I=-19:TP=-4:LRA=10"),
-    "salon_applause": ("claps", 0.0, 2.25, "highpass=f=130,lowpass=f=4600,loudnorm=I=-21:TP=-4:LRA=10"),
+    "salon_conversation": (
+        "voices", 0.0, 19.0,
+        "highpass=f=150,lowpass=f=3000,afade=t=in:st=0:d=0.5,"
+        "afade=t=out:st=18.4:d=0.6"
+    ),
 }
 MAX_DOWNLOAD = 12_000_000
 USER_AGENT = "CARTE-offline-audio-import/1.0 (https://github.com/studiosmus-source/CARTE-)"
