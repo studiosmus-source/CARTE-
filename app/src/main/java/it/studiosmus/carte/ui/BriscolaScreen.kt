@@ -47,7 +47,7 @@ class BriscolaScreen(
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dp(10), dp(8), dp(10), dp(10))
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(7, 30, 26), Color.rgb(20, 94, 68), forest))
+                intArrayOf(Color.rgb(24, 30, 26), Color.rgb(39, 43, 35), Color.rgb(20, 25, 23)))
         }
         val header = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -75,35 +75,17 @@ class BriscolaScreen(
         root.addView(renderer.cardBackRow(match.hands[1].size))
         root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
 
-        val table = FrameLayout(context).apply {
-            background = panel(Color.rgb(23, 103, 76), 24, Color.rgb(73, 125, 89))
-        }
+        val table = SalonTable(context)
         root.addView(table, LinearLayout.LayoutParams(-1, 0, 1f).apply {
             topMargin = dp(8)
             bottomMargin = dp(8)
         })
-        // The exposed trump lies sideways underneath the covered stock.
         if (match.remainingCards > 0) {
-            val trump = renderer.cardTile(match.trumpCard).apply {
-                rotation = 90f
-                pivotX = dp(39).toFloat()
-                pivotY = dp(64).toFloat()
-            }
-            table.addView(trump, FrameLayout.LayoutParams(dp(78), dp(129), Gravity.START or Gravity.CENTER_VERTICAL).apply {
-                leftMargin = dp(38)
-            })
-            if (match.remainingCards > 1) {
-                val back = renderer.cardBackRow(1)
-                table.addView(back, FrameLayout.LayoutParams(dp(90), dp(120),
-                    Gravity.START or Gravity.CENTER_VERTICAL))
-            }
-            table.addView(label("${match.remainingCards}", 17f, ivory, true).apply {
-                background = panel(Color.rgb(17, 63, 52), 18)
-            }, FrameLayout.LayoutParams(dp(44), dp(38),
-                Gravity.START or Gravity.CENTER_VERTICAL).apply {
-                leftMargin = dp(22)
-                topMargin = dp(64)
-            })
+            table.addView(
+                BriscolaStock(context, renderer, match.trumpCard, match.remainingCards),
+                FrameLayout.LayoutParams(dp(150), dp(160),
+                    Gravity.START or Gravity.CENTER_VERTICAL)
+            )
         }
         val lead = match.lead
         val leadView = lead?.let { renderer.cardTile(it.second) }
@@ -124,6 +106,8 @@ class BriscolaScreen(
             root.addView(label(match.result(), 24f, ivory, true))
             root.addView(Button(context).apply {
                 text = "NUOVA PARTITA"
+                setTextColor(ivory)
+                background = panel(Color.rgb(70, 48, 33), 14, Color.rgb(124, 89, 55))
                 setOnClickListener { onNewGame() }
             })
         } else {
