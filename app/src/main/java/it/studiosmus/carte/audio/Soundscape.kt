@@ -3,6 +3,8 @@ package it.studiosmus.carte.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.os.Handler
+import android.os.Looper
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
@@ -22,6 +24,8 @@ class Soundscape(private val random: Random = Random.Default) {
     private var track: AudioTrack? = null
     private var thread: Thread? = null
     private val events = java.util.concurrent.ConcurrentLinkedQueue<CardEvent>()
+    private val idleHandler = Handler(Looper.getMainLooper())
+    private val idleStop = Runnable { if (!enabled) stop() }
 
     fun volume(channel: Channel): Float = when (channel) {
         Channel.FIREPLACE -> fireplaceTarget
@@ -39,13 +43,16 @@ class Soundscape(private val random: Random = Random.Default) {
 
     fun setFireplaceEnabled(value: Boolean) {
         enabled = value
-        if (value) start()
+        idleHandler.removeCallbacks(idleStop)
+        if (value) start() else idleHandler.postDelayed(idleStop, 1200L)
     }
 
     fun playCard(event: CardEvent) {
         if (cardsTarget <= 0f) return
         events.offer(event)
+        idleHandler.removeCallbacks(idleStop)
         start()
+        if (!enabled) idleHandler.postDelayed(idleStop, 2200L)
     }
 
     @Synchronized
@@ -140,6 +147,7 @@ class Soundscape(private val random: Random = Random.Default) {
     @Synchronized
     fun stop() {
         running = false
+        idleHandler.removeCallbacks(idleStop)
         events.clear()
         thread?.join(500)
         track?.let {
