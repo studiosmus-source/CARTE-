@@ -171,7 +171,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             }
         }
 
-    fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null, dealFrom: Boolean? = null): View {
+    fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null, dealFrom: Boolean? = null, collectTo: Boolean? = null): View {
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -186,6 +186,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             params.setMargins(dp(3), 0, dp(3), 0)
             row.addView(tile, params)
             if (dealFrom != null) CardMotion.deal(tile, dealFrom, ::dp, index * 85L)
+            if (collectTo != null) CardMotion.collect(tile, collectTo, ::dp, index * 45L)
         }
         return HorizontalScrollView(context).apply {
             isHorizontalScrollBarEnabled = false
