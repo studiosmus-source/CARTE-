@@ -4,7 +4,6 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import kotlin.math.PI
-import kotlin.math.exp
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -77,10 +76,8 @@ class Soundscape(private val random: Random = Random.Default) {
         thread = Thread {
             val samples = ShortArray(512)
             var low = 0.0
-            var high = 0.0
             var fireGain = 0.0
             var cardGain = 0.0
-            var envelope = 0.0
             var cardBody = 0.0
             var cardHigh = 0.0
             var cardAge = 0
@@ -90,7 +87,6 @@ class Soundscape(private val random: Random = Random.Default) {
             var ember = 0.0
             val reflections = DoubleArray(1901)
             var reflectionIndex = 0
-            var quietFrames = 0
             while (running) {
                 for (i in samples.indices) {
                     val event = events.poll()
@@ -111,7 +107,6 @@ class Soundscape(private val random: Random = Random.Default) {
                     cardGain += (cardsTarget - cardGain) * 0.001
                     val noise = random.nextDouble(-1.0, 1.0)
                     low = low * 0.995 + noise * 0.005
-                    high = high * 0.88 + noise * 0.12
                     phase += 2 * PI * 0.17 / rate
                     val breathing = 0.82 + 0.18 * sin(phase)
                     ember *= 0.9991
@@ -120,7 +115,7 @@ class Soundscape(private val random: Random = Random.Default) {
                     var paper = 0.0
                     if (cardAge < cardDuration) {
                         val t = cardAge.toDouble() / cardDuration
-                        envelope = (1.0 - t) * (1.0 - t)
+                        val envelope = (1.0 - t) * (1.0 - t)
                         cardBody = cardBody * 0.83 + noise * 0.17
                         cardHigh = cardHigh * 0.52 + noise * 0.48
                         paper = (cardBody * 0.78 + cardHigh * 0.22) *
@@ -136,10 +131,7 @@ class Soundscape(private val random: Random = Random.Default) {
                 }
                 val written = audio.write(samples, 0, samples.size)
                 if (written <= 0) break
-                if (!enabled && events.isEmpty() && cardAge >= cardDuration && fireGain < 0.0001) {
-                    quietFrames++
-                    if (quietFrames > 40) break
-                } else quietFrames = 0
+
             }
             // The owner releases AudioTrack from stop(); do not race its lifecycle here.
         }.apply { name = "CARTE-audio-mixer"; isDaemon = true; start() }
