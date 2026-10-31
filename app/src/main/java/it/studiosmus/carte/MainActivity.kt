@@ -80,7 +80,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        soundscape.setFireplaceEnabled(fireplaceEnabled)
+        updateFireplacePlayback()
         salonAudio.start()
     }
 
@@ -97,8 +97,15 @@ class MainActivity : Activity() {
     private fun applyAmbience() {
         soundscape.setVolume(Soundscape.Channel.FIREPLACE, ambience.fireplace)
         soundscape.setVolume(Soundscape.Channel.CARDS, ambience.cards)
-        soundscape.setFireplaceEnabled(fireplaceEnabled && !salonAudio.hasRecording("salon_fireplace"))
         salonAudio.configure(ambience)
+        updateFireplacePlayback()
+    }
+
+    private fun updateFireplacePlayback() {
+        val inSalon = currentScreen == 2 || currentScreen == 3 ||
+            currentScreen == 4 || (currentScreen == 1 && audioReturnsToBriscola)
+        soundscape.setFireplaceEnabled(fireplaceEnabled && inSalon &&
+            !salonAudio.hasRecording("salon_fireplace"))
         salonAudio.setFireplaceEnabled(fireplaceEnabled)
     }
 
@@ -193,8 +200,7 @@ class MainActivity : Activity() {
                 fireplaceEnabled = !fireplaceEnabled
                 saveAmbience()
                 // Fireplace is independent of jazz and the other salon layers.
-                soundscape.setFireplaceEnabled(fireplaceEnabled && !salonAudio.hasRecording("salon_fireplace"))
-                salonAudio.setFireplaceEnabled(fireplaceEnabled)
+                updateFireplacePlayback()
                 text = if (fireplaceEnabled) "CAMINO ACCESO - TOCCA PER SPEGNERE"
                        else "CAMINO: ACCENDI"
             }
@@ -313,12 +319,14 @@ class MainActivity : Activity() {
         val token = ++navigationToken
         val outgoing = displayedScreen
         salonAudio.enterScene(SalonAudio.Scene.BLACK, 850L)
+        soundscape.setFireplaceEnabled(false)
         fun reveal() {
             if (token != navigationToken || isFinishing || isDestroyed) return
             briscolaSession.stop()
             scopaSession.stop()
             preludeGame = type
             showPrelude()
+            updateFireplacePlayback()
             val incoming = displayedScreen ?: return
             incoming.alpha = 0f
             salonAudio.enterScene(SalonAudio.Scene.SALON, 1600L)
@@ -333,11 +341,13 @@ class MainActivity : Activity() {
         val token = ++navigationToken
         val outgoing = displayedScreen
         salonAudio.enterScene(SalonAudio.Scene.BLACK, 850L)
+        soundscape.setFireplaceEnabled(false)
         fun reveal() {
             if (token != navigationToken || isFinishing || isDestroyed) return
             briscolaSession.stop()
             scopaSession.stop()
             showHome()
+            updateFireplacePlayback()
             val incoming = displayedScreen ?: return
             incoming.alpha = 0f
             salonAudio.enterScene(SalonAudio.Scene.HOME, 1600L)
