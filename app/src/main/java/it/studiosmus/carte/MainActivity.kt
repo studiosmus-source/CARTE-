@@ -23,9 +23,9 @@ import android.widget.TextView
  * Uses Android platform widgets without additional UI dependencies.
  */
 class MainActivity : Activity() {
-    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession({ renderBriscola() }, { salonAudio.playCard(it); Unit }) }
+    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession({ if (currentScreen == 2) renderBriscola() }, { salonAudio.playCard(it); Unit }) }
     private val game get() = briscolaSession.game
-    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ renderScopa() }, { salonAudio.playCard(it); Unit }) }
+    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ if (currentScreen == 3) renderScopa() }, { salonAudio.playCard(it); Unit }) }
     private val salonAudio by lazy { SalonAudio(this) }
     private var currentScreen = 0 // home=0, audio=1, briscola=2, scopa=3, table=4
     private var preludeGame = 2
@@ -62,6 +62,7 @@ class MainActivity : Activity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         when (currentScreen) {
+            -1 -> Unit // the transition callback installs the destination
             1 -> showAudioSettings(audioReturnsToBriscola)
             2 -> renderBriscola()
             3 -> renderScopa()
@@ -328,12 +329,16 @@ class MainActivity : Activity() {
         root.addView(box, params)
     }
 
-    private fun startScopa() = scopaSession.start()
+    private fun startScopa() {
+        currentScreen = 3
+        scopaSession.start()
+    }
 
     /** Fade to genuine black before revealing an EMPTY, un-dealt table. */
     private fun navigateToPrelude(type: Int) {
         if (type != 2 && type != 3) return
         val token = ++navigationToken
+        currentScreen = -1 // suppress callbacks while leaving this screen
         val outgoing = displayedScreen
         salonAudio.enterScene(SalonAudio.Scene.BLACK, 850L)
         fun reveal() {
@@ -355,6 +360,7 @@ class MainActivity : Activity() {
     /** Leaving the table always fades OUT to black, then home fades IN. */
     private fun navigateHome() {
         val token = ++navigationToken
+        currentScreen = -1 // suppress callbacks while leaving this screen
         val outgoing = displayedScreen
         salonAudio.enterScene(SalonAudio.Scene.BLACK, 850L)
         fun reveal() {
@@ -434,22 +440,46 @@ class MainActivity : Activity() {
         currentScreen = 3
         installScreen(it.studiosmus.carte.ui.ScopaScreen(
             this, scopaSession, cardRenderer,
-            onBack = { navigateHome() },
+            onBack = { confirmLeaveGame() },
             onNewGame = { navigateToPrelude(3) },
             onPlay = { card -> playScopaCard(card) }
         ).render())
     }
 
-    private fun startBriscola() = briscolaSession.start()
+    private fun startBriscola() {
+        currentScreen = 2
+        briscolaSession.start()
+    }
     private fun advanceComputer() = briscolaSession.advanceComputer()
 
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         when (currentScreen) {
-            2, 3, 4 -> navigateHome()
+            2, 3 -> confirmLeaveGame()
+            4 -> navigateHome()
+            -1 -> Unit // ignore back during a transition
             1 -> if (audioReturnsToBriscola && game != null) renderBriscola() else showHome()
             else -> super.onBackPressed()
         }
+    }
+
+    /** Do not discard an unfinished offline match from an accidental Back tap. */
+    private fun confirmLeaveGame() {
+        val unfinished = when (currentScreen) {
+            2 -> briscolaSession.game?.finished == false
+            3 -> scopaSession.game?.finished == false
+            else -> false
+        }
+        if (!unfinished) {
+            navigateHome()
+            return
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Abbandonare la partita?")
+            .setMessage("La partita in corso verrà persa.")
+            .setNegativeButton("Continua a giocare", null)
+            .setPositiveButton("Abbandona") { _, _ -> navigateHome() }
+            .show()
     }
 
     private fun cardName(card: Card): String =
@@ -464,7 +494,7 @@ class MainActivity : Activity() {
         currentScreen = 2
         installScreen(it.studiosmus.carte.ui.BriscolaScreen(
             this, briscolaSession, cardRenderer,
-            onBack = { navigateHome() },
+            onBack = { confirmLeaveGame() },
             onSettings = { showAudioSettings(returnToBriscola = true) },
             onNewGame = { navigateToPrelude(2) }
         ).render())
