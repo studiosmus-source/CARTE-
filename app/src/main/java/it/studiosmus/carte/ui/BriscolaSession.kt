@@ -3,10 +3,13 @@ package it.studiosmus.carte.ui
 import android.os.Handler
 import android.os.Looper
 import it.studiosmus.carte.core.BriscolaGame
+import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.core.Card
 
 /** Owns Briscola turns and delayed actions, independent of Activity rendering. */
-class BriscolaSession(private val changed: () -> Unit) {
+class BriscolaSession(private val changed: () -> Unit,
+    private val sound: (Soundscape.CardEvent) -> Unit = {}
+) {
     private val handler = Handler(Looper.getMainLooper())
     var game: BriscolaGame? = null
         private set
@@ -31,6 +34,7 @@ class BriscolaSession(private val changed: () -> Unit) {
         stop()
         game = BriscolaGame()
         dealing = true
+        sound(Soundscape.CardEvent.DEAL)
         changed()
         handler.postDelayed({
             if (game != null) {
@@ -61,6 +65,7 @@ class BriscolaSession(private val changed: () -> Unit) {
         if (first == null) {
             if (match.play(player, card)) {
                 playedBy = player
+                sound(Soundscape.CardEvent.PLAY)
                 changed()
                 if (match.turn == 1) advanceComputer()
             }
@@ -69,6 +74,7 @@ class BriscolaSession(private val changed: () -> Unit) {
         trickPreview = first.second to card
         playedBy = player
         trickResolving = true
+        sound(Soundscape.CardEvent.PLAY)
         changed()
         handler.postDelayed({
             if (game !== match) return@postDelayed
@@ -79,6 +85,7 @@ class BriscolaSession(private val changed: () -> Unit) {
                 return@postDelayed
             }
             collecting = true
+            sound(Soundscape.CardEvent.COLLECT)
             collectingCards = first.second to card
             lastWinner = match.leader
             trickPreview = null
@@ -89,6 +96,7 @@ class BriscolaSession(private val changed: () -> Unit) {
                 collectingCards = null
                 trickResolving = false
                 dealing = !match.finished && match.remainingCards > 0
+                if (dealing) sound(Soundscape.CardEvent.DEAL)
                 changed()
                 if (dealing) {
                     handler.postDelayed({
