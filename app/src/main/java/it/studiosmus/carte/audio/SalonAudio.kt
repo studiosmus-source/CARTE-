@@ -51,6 +51,7 @@ class SalonAudio(
     private val cardSamples = mutableMapOf<CardSoundEvent, Int>()
     private val cardReady = mutableSetOf<Int>()
     private var activeCardStream = 0
+    private val lastCardVariation = mutableMapOf<CardSoundEvent, Int>()
     private var cardStopRunnable: Runnable? = null
 
     fun hasRecording(name: String): Boolean =
@@ -148,6 +149,7 @@ class SalonAudio(
         cardPool = null
         cardSamples.clear()
         cardReady.clear()
+        lastCardVariation.clear()
         transition?.let(handler::removeCallbacks)
         transition = null
         pending.forEach(handler::removeCallbacks)
@@ -372,8 +374,21 @@ class SalonAudio(
         val soundId = cardSamples[event] ?: return false
         if (soundId !in cardReady) return false
         stopCardCue()
-        val volume = (settings.cards * roomPerspective).coerceIn(0f, 1f)
-        val stream = pool.play(soundId, volume, volume, 1, 0, 1f)
+        // Tiny rate, distance and stereo differences mimic individual real
+        // handling motions without changing the user-selected cards slider.
+        // The same variation cannot recur twice in a row for an action type.
+        val last = lastCardVariation[event] ?: -1
+        val choice = random.nextInt(2)
+        val variant = if (last in 0..2 && choice >= last) choice + 1 else choice
+        lastCardVariation[event] = variant
+        val rates = floatArrayOf(.982f, 1.0f, 1.018f)
+        val presence = floatArrayOf(.91f, 1.0f, .95f)
+        val pan = floatArrayOf(-.075f, 0f, .075f)
+        val volume = (settings.cards * roomPerspective * presence[variant])
+            .coerceIn(0f, 1f)
+        val left = volume * (1f - pan[variant].coerceAtLeast(0f))
+        val right = volume * (1f + pan[variant].coerceAtMost(0f))
+        val stream = pool.play(soundId, left, right, 1, 0, rates[variant])
         if (stream == 0) return false
         activeCardStream = stream
         // Defensive caps also cover an accidentally bundled long audio file.
