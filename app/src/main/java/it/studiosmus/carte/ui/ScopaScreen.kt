@@ -88,20 +88,21 @@ class ScopaScreen(
         } else {
             tableContent.addView(renderer.cardRow(match.table))
         }
-        if (session.collecting) {
-            tableContent.addView(renderer.cardRow(
-                session.collectedCards, collectTo = session.captureWinner == 1
-            ))
-        }
-        session.preview?.let { card ->
-            tableContent.addView(renderer.cardTile(card).apply {
-                CardMotion.reveal(this, match.turn == 1) { dp(it) }
-            }, LinearLayout.LayoutParams(dp(65), dp(108)).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-            })
-        }
         felt.addView(tableContent, android.widget.FrameLayout.LayoutParams(
             -1, -1, Gravity.CENTER))
+        if (session.collecting) {
+            val captured = renderer.cardRow(
+                session.collectedCards, collectTo = session.captureWinner == 1
+            )
+            felt.addView(captured, android.widget.FrameLayout.LayoutParams(
+                -1, -2, Gravity.CENTER))
+        }
+        session.preview?.let { card ->
+            val moving = renderer.cardTile(card)
+            felt.addView(moving, android.widget.FrameLayout.LayoutParams(
+                dp(65), dp(108), Gravity.CENTER))
+            CardMotion.reveal(moving, match.turn == 1) { dp(it) }
+        }
         root.addView(felt, LinearLayout.LayoutParams(-1, dp(235)))
         root.addView(label(
             if (session.dealing) "Si distribuiscono le carte…"
