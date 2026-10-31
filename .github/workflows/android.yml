@@ -2,14 +2,17 @@ name: Android debug APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/salon-continuity]
   workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -29,32 +32,71 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Extract supplied HD card archive or fetch original images
+      - name: Restore stable TEST-ONLY debug signature
         run: |
-          if [ -f app/src/main/assets/CARTE-HD-assets.zip ]; then
-            python3 - <<'PY'
+          base64 --decode tools/signing/TEST_ONLY_debug_keystore.b64 > app/ci-debug.keystore
+          keytool -list -keystore app/ci-debug.keystore -storepass android -alias androiddebugkey > /dev/null
+          echo "Explicit stable non-production signing key loaded for Gradle."
+      - name: Install approved worn card artwork or verified legacy deck
+        run: |
+          python3 tools/cards/import_cards.py
+          test "$(find app/src/main/assets/cards -maxdepth 1 -name '*.jpg' | wc -l)" -eq 40
+      - name: Import approved salon recordings if bundle supplied
+        run: |
+          python3 tools/audio/import_salon_audio.py
+      - name: Verify the imported sound resources
+        run: |
+          python3 - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
-          archive = Path("app/src/main/assets/CARTE-HD-assets.zip")
-          with ZipFile(archive) as z:
-              expected = {f"app/src/main/assets/cards/{suit}_{n:02d}.jpg" for suit in ("coppe", "denari", "bastoni", "spade") for n in range(1, 11)}
-              names = {n for n in z.namelist() if not n.endswith("/")}
-              assert names == expected, f"Archive card set mismatch: {sorted(expected - names)}"
-              for name in expected:
-                  data = z.read(name)
-                  assert len(data) > 10000 and data[:3] == bytes((255, 216, 255)), f"Invalid card: {name}"
-                  dest = Path(name)
-                  dest.parent.mkdir(parents=True, exist_ok=True)
-                  dest.write_bytes(data)
+          src = Path("tools/audio/CARTE-Salon-Audio.zip")
+          if src.exists():
+              with ZipFile(src) as audio:
+                  for name in audio.namelist():
+                      actual = Path("app/src/main/res/raw") / name
+                      assert actual.is_file(), f"Missing imported sound: {name}"
+                      assert actual.stat().st_size == audio.getinfo(name).file_size, f"Wrong size: {name}"
+              print("All approved audio files are present before compilation.")
+          else:
+              print("Audio bundle not uploaded yet; this build has no sampled music/ambience.")
           PY
+      - name: Restore previously verified audio without reprocessing unchanged recordings
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p app/src/main/res/raw /tmp/carte-reference-apk
+          if gh run download 41221211887 -n CARTE-debug-apk --repo "$GITHUB_REPOSITORY" -D /tmp/carte-reference-apk; then
+            reference_apk="$(find /tmp/carte-reference-apk -type f -name '*.apk' -print -quit)"
+            test -n "$reference_apk"
+            unzip -o -j "$reference_apk" 'res/raw/salon_*.ogg' -d app/src/main/res/raw > /dev/null
+            test "$(find app/src/main/res/raw -name 'salon_*.ogg' | wc -l)" -ge 14
+            echo "Reused 14 already approved salon recordings, byte-identical to v0.1.3."
           else
-            python3 tools/fetch_neapolitan_cards.py
+            echo "Old artifact unavailable; falling back to original CC0 importer."
+            command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+            python3 tools/audio/import_approved_recordings.py
           fi
-          test "$(find app/src/main/assets/cards -maxdepth 1 -name '*.jpg' | wc -l)" -eq 40
+
+      - name: Ensure ffmpeg tools are present for audio validation
+        run: |
+          command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          command -v ffprobe
+      - name: Build nine distinct card-handling recordings (pinned CC0 source)
+        run: |
+          python3 tools/audio/build_card_variations.py
+      - name: Verify nine non-repeating short recorded card cues
+        run: python3 tools/audio/check_card_cues.py
+      - name: Verify distinct intermittent whisper excerpts
+        run: python3 tools/audio/check_whispers.py
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
+      - name: Verify stable debug APK signing fingerprint
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | tee apk-signing.txt
+          grep -qi "41e4b186470088201ddfd71fc9c9af1100e120c7045f15e173f30006ab22fbbe" apk-signing.txt
+          echo "Verified: APK matches the stable test-only certificate."
       - name: Verify all 40 HD cards are actually inside the APK
         run: |
           python3 - <<'PY'
@@ -72,7 +114,67 @@ jobs:
                   assert info.file_size > 10000, f"Invalid card asset: {name}"
                   with archive.open(name) as card:
                       assert card.read(3) == bytes((255, 216, 255)), f"Not JPEG: {name}"
-          print("Verified: installable APK contains all 40 JPEG card assets.")
+          # If the approved vintage card archives are present, validate
+          # byte-for-byte inclusion in the compiled APK (not just file names).
+          from pathlib import Path
+          for part in ("tools/cards/CARTE-usura-parte-1.zip",
+                       "tools/cards/CARTE-usura-parte-2.zip"):
+              path = Path(part)
+              if not path.is_file():
+                  continue
+              with ZipFile(path) as originals:
+                  for source_name in originals.namelist():
+                      compiled_name = source_name.removeprefix("app/src/main/")
+                      assert archive is not None
+                      with ZipFile(apk) as built:
+                          assert originals.read(source_name) == built.read(compiled_name), (
+                              f"Approved artwork differs inside APK: {compiled_name}"
+                          )
+          print("Verified: APK contains forty HD JPEG cards and any approved vintage images unchanged.")
+          PY
+      - name: Verify the actual supplied table photo inside APK
+        run: |
+          python3 - <<'PY'
+          from hashlib import sha256
+          from zipfile import ZipFile
+          from pathlib import Path
+          name = "assets/textures/salon_table_reference.webp"
+          expected_sha = "afd63e4b92db87b21c231f202da789824343539f0660d7609f3a07bf819ec22d"
+          source = Path("app/src/main/java/it/studiosmus/carte/ui/SalonTable.kt").read_text()
+          assert "salon_table_reference.webp" in source and "canvas.drawBitmap(bitmap" in source
+          for obsolete in ("salon_wood.webp", "salon_felt.webp"):
+              assert obsolete not in source, f"Old material layer still in renderer: {obsolete}"
+          with ZipFile("app/build/outputs/apk/debug/app-debug.apk") as apk:
+              photo = apk.read(name)
+              assert len(photo) == 5524, "Supplied table photo size differs"
+              assert photo[:4] == b"RIFF" and photo[8:12] == b"WEBP", "Not WebP"
+              assert sha256(photo).hexdigest() == expected_sha, "Wrong or corrupt table photograph"
+              assert "assets/textures/salon_wood.webp" not in apk.namelist()
+              assert "assets/textures/salon_felt.webp" not in apk.namelist()
+          print("Verified: supplied photo exactly in APK; obsolete texture layers removed.")
+          PY
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 app/src/main/assets/textures/salon_table_reference.webp | grep -qx "320,420"
+      - name: Verify recorded audio inside the APK
+        run: |
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          apk = 'app/build/outputs/apk/debug/app-debug.apk'
+          expected = ('salon_jazz', 'salon_fireplace',
+                      'salon_conversation', 'salon_glassware',
+                      'salon_chair', 'salon_footsteps', 'salon_applause',
+                      'salon_whisper_01', 'salon_whisper_02',
+                      'salon_whisper_03', 'salon_whisper_04')
+          expected += tuple(f'salon_card_{kind}_{i:02d}'
+                            for kind in ('deal', 'play', 'collect')
+                            for i in range(1, 4))
+          with ZipFile(apk) as z:
+              for name in expected:
+                  matches = [entry for entry in z.namelist()
+                             if entry.startswith('res/raw/') and entry.split('/')[-1].startswith(name + '.')]
+                  assert len(matches) == 1, f'Audio missing from APK: {name}'
+                  with z.open(matches[0]) as fp:
+                      assert fp.read(4) == b'OggS', f'Invalid packaged sound: {name}'
+                  print('Verified APK audio:', matches[0])
           PY
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
