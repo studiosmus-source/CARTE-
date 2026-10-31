@@ -55,7 +55,8 @@ jobs:
           test "$(find app/src/main/assets/cards -maxdepth 1 -name '*.jpg' | wc -l)" -eq 40
       - name: Fetch and process all approved real sound recordings
         run: |
-          command -v ffmpeg
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
           python3 tools/audio/import_approved_recordings.py
       - name: Import approved salon recordings if bundle supplied
         run: |
