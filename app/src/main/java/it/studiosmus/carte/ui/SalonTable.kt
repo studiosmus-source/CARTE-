@@ -91,31 +91,39 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
             val w = width.toFloat()
             val h = height.toFloat()
             val time = SystemClock.uptimeMillis() / 1000f
-            // Off-screen flames fluctuate in amplitude AND in the location
-            // of their reflected patch; avoid periodic blinking of the entire table.
-            val slow = sin(time * 1.71f)
-            val fast = sin(time * 4.38f)
-            val flicker = (.76f + .16f * slow + .08f * fast)
-                .coerceIn(.49f, 1f)
-            val strength = fireAmount * flicker
-            val centerY = h * (.61f + .022f * sin(time * 1.24f))
-            val radius = max(w * .82f, h * .50f)
-            paint.shader = RadialGradient(w * .035f, centerY, radius,
+            // Fireplace reflected from outside the left side. Two moving pools
+            // oscillate at different rates so the glow feels alive, but the
+            // table never flashes as one uniform sheet of orange.
+            val slow = sin(time * 2.17f)
+            val fast = sin(time * 5.73f + .63f)
+            val drift = sin(time * .91f)
+            val flame = (.70f + .23f * slow + .10f * fast)
+                .coerceIn(.36f, 1f) * fireAmount
+            val centerY = h * (.62f + .037f * drift)
+            val centerX = w * (.025f + .028f * sin(time * 1.37f))
+            val radius = max(w * .78f, h * .52f)
+            paint.shader = RadialGradient(centerX, centerY, radius,
                 intArrayOf(
-                    Color.argb((150f * strength).toInt(), 255, 162, 77),
-                    Color.argb((58f * strength).toInt(), 246, 118, 45),
+                    Color.argb((184f * flame).toInt(), 255, 169, 83),
+                    Color.argb((81f * flame).toInt(), 244, 126, 48),
                     Color.TRANSPARENT
-                ), floatArrayOf(0f, .43f, 1f), Shader.TileMode.CLAMP)
+                ), floatArrayOf(0f, .39f, 1f), Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, w, h, paint)
-            // Local amber kick along the wooden rim catches the flame,
-            // while the photographic material remains fully visible.
-            paint.shader = RadialGradient(-w * .24f, h * .61f, max(w * .80f, h * .38f),
-                intArrayOf(Color.argb((72f * strength).toInt(), 255, 196, 122),
-                    Color.TRANSPARENT), null, Shader.TileMode.CLAMP)
+
+            // Warmer intermittent gleam on the left wooden rail.
+            val ember = (.68f + .24f * sin(time * 3.32f + 1.1f)
+                + .08f * sin(time * 7.12f)).coerceIn(.38f, 1f) * fireAmount
+            paint.shader = RadialGradient(-w * .12f,
+                h * (.43f + .028f * sin(time * 1.04f)),
+                max(w * .66f, h * .32f),
+                intArrayOf(Color.argb((101f * ember).toInt(), 255, 191, 107),
+                    Color.argb((26f * ember).toInt(), 240, 130, 51),
+                    Color.TRANSPARENT),
+                floatArrayOf(0f, .45f, 1f), Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, w, h, paint)
             paint.shader = null
             if (isAttachedToWindow && visibility == VISIBLE) {
-                postInvalidateDelayed(145L)
+                postInvalidateDelayed(110L)
             }
         }
 
