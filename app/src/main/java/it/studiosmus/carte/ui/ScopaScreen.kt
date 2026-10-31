@@ -66,7 +66,7 @@ class ScopaScreen(
         root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
         root.addView(renderer.cardBackRow(match.hands[1].size).apply {
-            if (session.dealing) CardMotion.reveal(this, true) { dp(it) }
+            if (session.dealing) CardMotion.deal(this, true) { dp(it) }
         })
         val felt = SalonTable(context).apply {
             minimumHeight = dp(235)
@@ -88,7 +88,9 @@ class ScopaScreen(
                 setPadding(dp(8), dp(30), dp(8), dp(30))
             })
         } else {
-            tableContent.addView(renderer.cardRow(match.table))
+            tableContent.addView(renderer.cardRow(match.table).apply {
+                if (session.collecting) CardMotion.collect(this, match.turn == 0) { dp(it) }
+            })
         }
         session.preview?.let { card ->
             tableContent.addView(renderer.cardTile(card).apply {
@@ -121,7 +123,9 @@ class ScopaScreen(
             })
         } else {
             root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
-            root.addView(renderer.cardRow(match.hands[0]) { card -> if (match.turn == 0 && !session.busy) onPlay(card) })
+            root.addView(renderer.cardRow(match.hands[0]) { card -> if (match.turn == 0 && !session.busy) onPlay(card) }.apply {
+                if (session.dealing) CardMotion.deal(this, false) { dp(it) }
+            })
         }
         return scroll
     }
