@@ -321,6 +321,11 @@ class SalonAudio(
         player.isLooping = true
         players.add(player)
         names[player] = name
+        if (name == "salon_fireplace") {
+            // The hearth is outside the camera on the LEFT, not at the
+            // listener's exact position. Keep low rumble in both ears.
+            spatialMix[player] = .96f to -.30f
+        }
         refreshMix()
         try { player.start() } catch (_: IllegalStateException) { dispose(player) }
     }
