@@ -17,7 +17,10 @@ object CardMotion {
             460L, delay)
     }
 
-    fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int, delay: Long = 0L) {
+    fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int) =
+        collect(card, toComputer, dp, 0L)
+
+    fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int, delay: Long) {
         if (card == null) return
         card.animate().cancel()
         card.animate()
