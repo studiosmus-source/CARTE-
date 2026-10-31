@@ -9,8 +9,8 @@ android {
         applicationId = "it.studiosmus.carte"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.1.6"
+        versionCode = 8
+        versionName = "0.1.7"
     }
     // CI test builds use a stable, deliberately non-release signing key.
     // Local developer builds retain the normal Android debug key if absent.
