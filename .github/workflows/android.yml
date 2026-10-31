@@ -72,6 +72,8 @@ jobs:
           else:
               print("Audio bundle not uploaded yet; this build has no sampled music/ambience.")
           PY
+      - name: Import real CC0 card handling recordings
+        run: python3 tools/audio/import_kenney_cards.py
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build debug APK
@@ -94,6 +96,21 @@ jobs:
                   with archive.open(name) as card:
                       assert card.read(3) == bytes((255, 216, 255)), f"Not JPEG: {name}"
           print("Verified: installable APK contains all 40 JPEG card assets.")
+          PY
+      - name: Verify recorded audio inside the APK
+        run: |
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          apk = 'app/build/outputs/apk/debug/app-debug.apk'
+          expected = ('salon_jazz', 'salon_card_deal', 'salon_card_play', 'salon_card_collect')
+          with ZipFile(apk) as z:
+              for name in expected:
+                  matches = [entry for entry in z.namelist()
+                             if entry.startswith('res/raw/') and entry.split('/')[-1].startswith(name + '.')]
+                  assert len(matches) == 1, f'Audio missing from APK: {name}'
+                  with z.open(matches[0]) as fp:
+                      assert fp.read(4) == b'OggS', f'Invalid packaged sound: {name}'
+                  print('Verified APK audio:', matches[0])
           PY
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
