@@ -61,6 +61,8 @@ jobs:
           python3 tools/audio/import_approved_recordings.py
       - name: Verify short synchronized card Foley
         run: python3 tools/audio/check_card_cues.py
+      - name: Verify distinct intermittent whisper excerpts
+        run: python3 tools/audio/check_whispers.py
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build debug APK
@@ -108,7 +110,9 @@ jobs:
           expected = ('salon_jazz', 'salon_fireplace', 'salon_card_deal',
                       'salon_card_play', 'salon_card_collect',
                       'salon_conversation', 'salon_glassware',
-                      'salon_chair', 'salon_footsteps', 'salon_applause')
+                      'salon_chair', 'salon_footsteps', 'salon_applause',
+                      'salon_whisper_01', 'salon_whisper_02',
+                      'salon_whisper_03', 'salon_whisper_04')
           with ZipFile(apk) as z:
               for name in expected:
                   matches = [entry for entry in z.namelist()
