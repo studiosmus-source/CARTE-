@@ -3,52 +3,76 @@ package it.studiosmus.carte.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.os.Handler
+import android.os.Looper
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Offline ambient mixer. Synthesized fireplace is real audio, not a placeholder.
- * Jazz / glasses / doors / whispers require cleared sound assets and are not faked.
+ * Two independent offline layers: low-level fireplace and short card foley.
+ * Card events are band-limited paper/felt taps, never continuous white noise.
+ * Volumes ramp smoothly to prevent slider clicks and start/stop discontinuities.
  */
 class Soundscape(private val random: Random = Random.Default) {
     enum class Channel { FIREPLACE, JAZZ, ROOM, CARDS }
-    private val levels = Channel.entries.associateWith { if (it == Channel.FIREPLACE) 0.22f else 0.35f }.toMutableMap()
+    enum class CardEvent { DEAL, PLAY, COLLECT }
+    @Volatile private var fireplaceTarget = 0.22f
+    @Volatile private var cardsTarget = 0.55f
+    @Volatile private var enabled = false
+    @Volatile private var running = false
     private var track: AudioTrack? = null
-    private var running = false
     private var thread: Thread? = null
+    private val events = java.util.concurrent.ConcurrentLinkedQueue<CardEvent>()
+    private val idleHandler = Handler(Looper.getMainLooper())
+    private val idleStop = Runnable { if (!enabled) stop() }
 
-    fun volume(channel: Channel): Float = levels.getValue(channel)
+    fun volume(channel: Channel): Float = when (channel) {
+        Channel.FIREPLACE -> fireplaceTarget
+        Channel.CARDS -> cardsTarget
+        else -> 0f
+    }
 
     fun setVolume(channel: Channel, volume: Float) {
-        levels[channel] = volume.coerceIn(0f, 1f)
+        when (channel) {
+            Channel.FIREPLACE -> fireplaceTarget = volume.coerceIn(0f, 1f)
+            Channel.CARDS -> cardsTarget = volume.coerceIn(0f, 1f)
+            else -> Unit
+        }
+    }
+
+    fun setFireplaceEnabled(value: Boolean) {
+        enabled = value
+        idleHandler.removeCallbacks(idleStop)
+        if (value) start() else idleHandler.postDelayed(idleStop, 1200L)
+    }
+
+    fun playCard(event: CardEvent) {
+        if (cardsTarget <= 0f) return
+        events.offer(event)
+        idleHandler.removeCallbacks(idleStop)
+        start()
+        if (!enabled) idleHandler.postDelayed(idleStop, 2200L)
     }
 
     @Synchronized
     fun start() {
         if (running) return
-        val sampleRate = 22050
-        val bufferSize = AudioTrack.getMinBufferSize(
-            sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT
-        )
-        if (bufferSize <= 0) return
-        val audio = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setSampleRate(sampleRate)
+        val rate = 22050
+        val minimum = AudioTrack.getMinBufferSize(rate,
+            AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        if (minimum <= 0) return
+        val audio = try {
+            AudioTrack.Builder()
+                .setAudioAttributes(AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                .setAudioFormat(AudioFormat.Builder().setSampleRate(rate)
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build()
-            )
-            .setBufferSizeInBytes(bufferSize * 2)
-            .setTransferMode(AudioTrack.MODE_STREAM)
-            .build()
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
+                .setBufferSizeInBytes(maxOf(minimum * 2, 4096))
+                .setTransferMode(AudioTrack.MODE_STREAM).build()
+        } catch (_: RuntimeException) { return }
         if (audio.state != AudioTrack.STATE_INITIALIZED) {
             audio.release()
             return
@@ -57,67 +81,79 @@ class Soundscape(private val random: Random = Random.Default) {
         running = true
         audio.play()
         thread = Thread {
-            val samples = ShortArray(1024)
+            val samples = ShortArray(512)
             var low = 0.0
+            var fireGain = 0.0
+            var cardGain = 0.0
+            var cardBody = 0.0
+            var cardHigh = 0.0
+            var cardAge = 0
+            var cardDuration = 1
+            var cardStrength = 0.0
             var phase = 0.0
-            var crackle = 0.0
-            var crackleBody = 0.0
-            var crackleEdge = 0.0
-            // Several quiet reflections create a room tail, not a single slapback echo.
-            val roomA = DoubleArray(1543)
-            val roomB = DoubleArray(2789)
-            val roomC = DoubleArray(4217)
-            var roomIndex = 0L
+            var ember = 0.0
+            val reflections = DoubleArray(1901)
+            var reflectionIndex = 0
             while (running) {
-                val gain = volume(Channel.FIREPLACE).toDouble()
                 for (i in samples.indices) {
+                    val event = events.poll()
+                    if (event != null) {
+                        cardAge = 0
+                        cardDuration = when (event) {
+                            CardEvent.DEAL -> 1550
+                            CardEvent.PLAY -> 2300
+                            CardEvent.COLLECT -> 3200
+                        }
+                        cardStrength = when (event) {
+                            CardEvent.DEAL -> 0.14
+                            CardEvent.PLAY -> 0.22
+                            CardEvent.COLLECT -> 0.17
+                        }
+                    }
+                    fireGain += ((if (enabled) fireplaceTarget else 0f) - fireGain) * 0.0008
+                    cardGain += (cardsTarget - cardGain) * 0.001
                     val noise = random.nextDouble(-1.0, 1.0)
-                    low = low * 0.985 + noise * 0.015
-                    // Preserve the original irregular wood-crackle events.
-                    crackle *= 0.93
-                    if (random.nextDouble() < 0.00055) crackle += random.nextDouble(0.3, 0.85)
-                    val rawCrackle = crackle * noise
-                    // Two frequency bands: a rounded low-mid snap plus some audible texture.
-                    crackleBody = crackleBody * 0.72 + rawCrackle * 0.28
-                    crackleEdge = crackleEdge * 0.38 + rawCrackle * 0.62
-                    phase += 2 * PI * 0.21 / sampleRate
-                    val breath = 0.75 + 0.25 * sin(phase)
-                    // Quiet, warm bed. The wood snaps remain clearly above the bed.
-                    val bed = low * 2.3 * breath + noise * 0.007
-                    val snap = crackleBody * 1.45 + crackleEdge * 0.52
-                    val direct = (bed + snap) * gain * 0.68
-                    val ia = (roomIndex % roomA.size).toInt()
-                    val ib = (roomIndex % roomB.size).toInt()
-                    val ic = (roomIndex % roomC.size).toInt()
-                    val reflectedA = roomA[ia]
-                    val reflectedB = roomB[ib]
-                    val reflectedC = roomC[ic]
-                    // Short and medium diffuse reflections with a decaying tail.
-                    roomA[ia] = direct * 0.40 + reflectedA * 0.25
-                    roomB[ib] = direct * 0.32 + reflectedB * 0.32
-                    roomC[ic] = direct * 0.25 + reflectedC * 0.36
-                    roomIndex++
-                    val roomSignal = direct * 0.72 +
-                        reflectedA * 0.36 + reflectedB * 0.32 + reflectedC * 0.27
-                    samples[i] = (roomSignal.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).toInt().toShort()
+                    low = low * 0.995 + noise * 0.005
+                    phase += 2 * PI * 0.17 / rate
+                    val breathing = 0.82 + 0.18 * sin(phase)
+                    ember *= 0.9991
+                    if (random.nextDouble() < 0.000015) ember = random.nextDouble(0.03, 0.09)
+                    val fire = (low * 1.65 * breathing + ember * low) * fireGain * 0.42
+                    var paper = 0.0
+                    if (cardAge < cardDuration) {
+                        val t = cardAge.toDouble() / cardDuration
+                        val envelope = (1.0 - t) * (1.0 - t)
+                        cardBody = cardBody * 0.83 + noise * 0.17
+                        cardHigh = cardHigh * 0.52 + noise * 0.48
+                        paper = (cardBody * 0.78 + cardHigh * 0.22) *
+                            envelope * cardStrength * cardGain
+                        cardAge++
+                    }
+                    val direct = fire + paper
+                    val echo = reflections[reflectionIndex]
+                    reflections[reflectionIndex] = direct * 0.12 + echo * 0.14
+                    reflectionIndex = (reflectionIndex + 1) % reflections.size
+                    val output = (direct + echo * 0.25).coerceIn(-0.85, 0.85)
+                    samples[i] = (output * Short.MAX_VALUE).toInt().toShort()
                 }
-                var written = 0
-                while (running && written < samples.size) {
-                    val count = audio.write(samples, written, samples.size - written)
-                    if (count <= 0) break
-                    written += count
-                }
+                val written = audio.write(samples, 0, samples.size)
+                if (written <= 0) break
+
             }
-        }.apply { name = "CARTE-fireplace"; isDaemon = true; start() }
+            // The owner releases AudioTrack from stop(); do not race its lifecycle here.
+        }.apply { name = "CARTE-audio-mixer"; isDaemon = true; start() }
     }
 
     @Synchronized
     fun stop() {
         running = false
-        thread?.join(350)
-        track?.pause()
-        track?.flush()
-        track?.release()
+        idleHandler.removeCallbacks(idleStop)
+        events.clear()
+        thread?.join(500)
+        track?.let {
+            try { it.pause(); it.flush() } catch (_: IllegalStateException) {}
+            it.release()
+        }
         track = null
         thread = null
     }

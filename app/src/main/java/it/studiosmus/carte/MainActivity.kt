@@ -2,8 +2,7 @@ package it.studiosmus.carte
 
 import android.app.Activity
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -11,13 +10,9 @@ import android.view.Gravity
 import android.view.View
 import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.audio.SalonAudio
-import it.studiosmus.carte.core.ScopaGame
-import it.studiosmus.carte.core.BriscolaGame
 import it.studiosmus.carte.core.Card
 import android.widget.SeekBar
-import android.widget.HorizontalScrollView
 import it.studiosmus.carte.audio.AmbienceSettings
-import android.widget.FrameLayout
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -28,14 +23,13 @@ import android.widget.TextView
  * Uses Android platform widgets without additional UI dependencies.
  */
 class MainActivity : Activity() {
-    private val gameHandler = Handler(Looper.getMainLooper())
-    private var computerPending = false
-    private var trickPreview: Pair<Card, Card>? = null
-    private var trickResolving = false
-    private var game: BriscolaGame? = null
-    private var scopa: ScopaGame? = null
+    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession({ renderBriscola() }, { soundscape.playCard(it) }) }
+    private val game get() = briscolaSession.game
+    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ renderScopa() }, { soundscape.playCard(it) }) }
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
+    private var currentScreen = 0 // home=0, audio=1, briscola=2, scopa=3
+    private var audioReturnsToBriscola = false
     private var fireplaceEnabled = false
     private var ambience = AmbienceSettings()
     private val ivory = Color.rgb(247, 233, 203)
@@ -60,6 +54,16 @@ class MainActivity : Activity() {
         showHome()
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        when (currentScreen) {
+            1 -> showAudioSettings(audioReturnsToBriscola)
+            2 -> renderBriscola()
+            3 -> renderScopa()
+            else -> showHome()
+        }
+    }
+
     override fun onPause() {
         soundscape.stop()
         salonAudio.stop()
@@ -68,14 +72,13 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        if (fireplaceEnabled) {
-            soundscape.start()
-            salonAudio.start()
-        }
+        soundscape.setFireplaceEnabled(fireplaceEnabled)
+        if (fireplaceEnabled) salonAudio.start()
     }
 
     override fun onDestroy() {
-        gameHandler.removeCallbacksAndMessages(null)
+        briscolaSession.stop()
+        scopaSession.stop()
         soundscape.release()
         salonAudio.stop()
         super.onDestroy()
@@ -83,6 +86,8 @@ class MainActivity : Activity() {
 
     private fun applyAmbience() {
         soundscape.setVolume(Soundscape.Channel.FIREPLACE, ambience.fireplace)
+        soundscape.setVolume(Soundscape.Channel.CARDS, ambience.cards)
+        soundscape.setFireplaceEnabled(fireplaceEnabled)
         salonAudio.configure(ambience)
     }
 
@@ -97,6 +102,26 @@ class MainActivity : Activity() {
             .putFloat("cards", ambience.cards)
             .apply()
         applyAmbience()
+    }
+
+    // Apply system bar safe areas to every screen without accumulating padding
+    // when Android redispatches insets after configuration changes.
+    private fun installScreen(view: View) {
+        val left = view.paddingLeft
+        val top = view.paddingTop
+        val right = view.paddingRight
+        val bottom = view.paddingBottom
+        view.setOnApplyWindowInsetsListener { target, insets ->
+            // Legacy getters work down to the app's minSdk 26.
+            @Suppress("DEPRECATION")
+            target.setPadding(left + insets.systemWindowInsetLeft,
+                top + insets.systemWindowInsetTop,
+                right + insets.systemWindowInsetRight,
+                bottom + insets.systemWindowInsetBottom)
+            insets
+        }
+        setContentView(view)
+        view.requestApplyInsets()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -118,226 +143,10 @@ class MainActivity : Activity() {
             else typeface = Typeface.SERIF
         }
 
-    // Share decoded artwork between repeated cards and screens. Decode at display resolution
-    // instead of allocating 40 full-size (1920x3173) bitmaps on the UI thread.
-    private val cardBitmapCache = mutableMapOf<String, android.graphics.Bitmap>()
-    private fun cardArtwork(card: Card): android.graphics.Bitmap? {
-        cardBitmapCache[card.id]?.let { return it }
-        return try {
-            val path = "cards/${card.id}.jpg"
-            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            assets.open(path).use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
-            var sample = 1
-            while (bounds.outWidth / (sample * 2) >= 360 && bounds.outHeight / (sample * 2) >= 500) sample *= 2
-            val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
-            assets.open(path).use { stream ->
-                android.graphics.BitmapFactory.decodeStream(stream, null, options)?.also {
-                    cardBitmapCache[card.id] = it
-                }
-            }
-        } catch (_: java.io.IOException) { null }
-    }
-
-    // HD original artwork is preferred; the painted fallback is used only if an asset is missing.
-    private fun cardTile(card: Card, enabled: Boolean = false, action: (() -> Unit)? = null): View =
-        object : View(this) {
-            private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-            private val ink = if (card.suit.name in listOf("DENARI", "COPPE"))
-                Color.rgb(156, 52, 38) else Color.rgb(35, 75, 65)
-            // Vector suit emblems avoid font-dependent emoji and stay crisp at any density.
-            private fun emblem(canvas: android.graphics.Canvas, cx: Float, cy: Float, scale: Float) {
-                canvas.save()
-                canvas.translate(cx, cy)
-                canvas.scale(scale, scale)
-                paint.style = android.graphics.Paint.Style.FILL
-                paint.color = ink
-                when (card.suit.name) {
-                    "DENARI" -> {
-                        paint.color = Color.rgb(202, 145, 46)
-                        canvas.drawCircle(0f, 0f, 11f, paint)
-                        paint.color = Color.rgb(130, 47, 36)
-                        canvas.drawCircle(0f, 0f, 7.5f, paint)
-                        paint.color = Color.rgb(237, 190, 80)
-                        canvas.drawCircle(0f, 0f, 4.5f, paint)
-                        paint.style = android.graphics.Paint.Style.STROKE
-                        paint.strokeWidth = 1.2f
-                        canvas.drawCircle(0f, 0f, 9.5f, paint)
-                    }
-                    "COPPE" -> {
-                        val bowl = android.graphics.Path().apply {
-                            moveTo(-11f, -7f); lineTo(11f, -7f)
-                            cubicTo(10f, 6f, 5f, 8f, 2f, 9f)
-                            lineTo(2f, 14f); lineTo(8f, 14f)
-                            lineTo(8f, 17f); lineTo(-8f, 17f)
-                            lineTo(-8f, 14f); lineTo(-2f, 14f)
-                            lineTo(-2f, 9f)
-                            cubicTo(-5f, 8f, -10f, 6f, -11f, -7f)
-                            close()
-                        }
-                        canvas.drawPath(bowl, paint)
-                        paint.style = android.graphics.Paint.Style.STROKE
-                        paint.strokeWidth = 2f
-                        canvas.drawArc(-15f, -8f, -6f, 6f, 90f, 180f, false, paint)
-                        canvas.drawArc(6f, -8f, 15f, 6f, -90f, 180f, false, paint)
-                    }
-                    "SPADE" -> {
-                        val blade = android.graphics.Path().apply {
-                            moveTo(0f, -18f); lineTo(5f, 5f); lineTo(0f, 10f)
-                            lineTo(-5f, 5f); close()
-                        }
-                        canvas.drawPath(blade, paint)
-                        canvas.drawRect(-9f, 9f, 9f, 12f, paint)
-                        canvas.drawRect(-2f, 12f, 2f, 19f, paint)
-                        canvas.drawCircle(0f, 19f, 2.5f, paint)
-                    }
-                    else -> {
-                        paint.strokeWidth = 5f
-                        paint.strokeCap = android.graphics.Paint.Cap.ROUND
-                        canvas.drawLine(-3f, 16f, 3f, -15f, paint)
-                        paint.style = android.graphics.Paint.Style.FILL
-                        canvas.drawOval(-11f, -17f, -1f, -3f, paint)
-                        canvas.drawOval(1f, -12f, 11f, 2f, paint)
-                    }
-                }
-                canvas.restore()
-            }
-            private fun text(canvas: android.graphics.Canvas, value: String, x: Float, y: Float,
-                             size: Float, color: Int, bold: Boolean = false) {
-                paint.color = color
-                paint.style = android.graphics.Paint.Style.FILL
-                paint.textAlign = android.graphics.Paint.Align.CENTER
-                paint.typeface = if (bold) Typeface.create(Typeface.SERIF, Typeface.BOLD) else Typeface.SERIF
-                paint.textSize = size
-                canvas.drawText(value, x, y, paint)
-            }
-            private val artwork: android.graphics.Bitmap? by lazy { cardArtwork(card) }
-            override fun onDraw(canvas: android.graphics.Canvas) {
-                super.onDraw(canvas)
-                val w = width.toFloat()
-                val h = height.toFloat()
-                val bitmap = artwork
-                if (bitmap != null) {
-                    paint.style = android.graphics.Paint.Style.FILL
-                    paint.isFilterBitmap = true
-                    canvas.drawBitmap(bitmap, null,
-                        android.graphics.RectF(0f, 0f, w, h), paint)
-                    return
-                }
-                val unit = w / 92f
-                paint.style = android.graphics.Paint.Style.FILL
-                paint.color = Color.rgb(251, 240, 212)
-                canvas.drawRoundRect(1f, 1f, w - 1f, h - 1f, 9f * unit, 9f * unit, paint)
-                paint.style = android.graphics.Paint.Style.STROKE
-                paint.strokeWidth = 2f * unit
-                paint.color = Color.rgb(189, 145, 76)
-                canvas.drawRoundRect(5f * unit, 5f * unit, w - 5f * unit, h - 5f * unit,
-                    6f * unit, 6f * unit, paint)
-                paint.strokeWidth = 0.7f * unit
-                canvas.drawRoundRect(9f * unit, 9f * unit, w - 9f * unit, h - 9f * unit,
-                    3f * unit, 3f * unit, paint)
-                paint.style = android.graphics.Paint.Style.FILL
-                val rank = card.rank.number
-                val title = when (rank) { 8 -> "F"; 9 -> "C"; 10 -> "R"; else -> rank.toString() }
-                text(canvas, title, 18f * unit, 25f * unit, 17f * unit, ink, true)
-                text(canvas, title, w - 18f * unit, h - 13f * unit, 17f * unit, ink, true)
-                if (rank <= 7) {
-                    val positions = when (rank) {
-                        1 -> listOf(0.5f to 0.5f)
-                        2 -> listOf(0.5f to 0.32f, 0.5f to 0.68f)
-                        3 -> listOf(0.5f to 0.27f, 0.5f to 0.5f, 0.5f to 0.73f)
-                        else -> (0 until rank).map { i ->
-                            (if (i % 2 == 0) 0.32f else 0.68f) to
-                                (0.25f + (i / 2) * 0.16f).coerceAtMost(0.78f)
-                        }
-                    }
-                    positions.forEach { (px, py) ->
-                        emblem(canvas, w * px, h * py, 0.75f * unit)
-                    }
-                } else {
-                    emblem(canvas, w / 2f, h * 0.44f, 1.7f * unit)
-                    val figure = when (rank) { 8 -> "FANTE"; 9 -> "CAVALLO"; else -> "RE" }
-                    text(canvas, figure, w / 2f, h * 0.64f, 12f * unit, ink, true)
-                }
-                text(canvas, card.suit.name, w / 2f, h - 27f * unit, 9f * unit, ink, true)
-            }
-        }.apply {
-            contentDescription = "${card.rank.number} ${card.suit.name}"
-            isEnabled = enabled || action == null
-            if (action != null) {
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { action() }
-            }
-        }
-
-    private fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(dp(2), dp(6), dp(2), dp(6))
-        }
-        cards.forEach { card ->
-            val tile = if (action == null) cardTile(card) else cardTile(card, true) { action(card) }
-            // Match the original 1920×3173 scans without stretching the artwork.
-            val params = LinearLayout.LayoutParams(dp(78), dp(129))
-            params.setMargins(dp(3), 0, dp(3), 0)
-            row.addView(tile, params)
-        }
-        return HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            // A short hand fits on a phone without forcing the player to scroll.
-            isFillViewport = true
-            addView(row)
-        }
-    }
-
-    private fun cardBackRow(count: Int): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(dp(4), dp(8), dp(4), dp(8))
-        }
-        repeat(count) {
-            val back = object : View(this) {
-                private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-                override fun onDraw(canvas: android.graphics.Canvas) {
-                    val w = width.toFloat()
-                    val h = height.toFloat()
-                    paint.style = android.graphics.Paint.Style.FILL
-                    paint.color = Color.rgb(95, 31, 37)
-                    canvas.drawRoundRect(1f, 1f, w - 1f, h - 1f, dp(7).toFloat(), dp(7).toFloat(), paint)
-                    paint.style = android.graphics.Paint.Style.STROKE
-                    paint.strokeWidth = dp(2).toFloat()
-                    paint.color = gold
-                    canvas.drawRoundRect(dp(5).toFloat(), dp(5).toFloat(),
-                        w - dp(5), h - dp(5), dp(4).toFloat(), dp(4).toFloat(), paint)
-                    paint.strokeWidth = dp(1).toFloat()
-                    val step = dp(12).toFloat()
-                    var y = dp(15).toFloat()
-                    while (y < h - dp(10)) {
-                        var x = dp(14).toFloat()
-                        while (x < w - dp(10)) {
-                            canvas.drawCircle(x, y, dp(2).toFloat(), paint)
-                            x += step
-                        }
-                        y += step
-                    }
-                    paint.style = android.graphics.Paint.Style.FILL
-                    paint.color = ivory
-                    paint.textAlign = android.graphics.Paint.Align.CENTER
-                    paint.typeface = Typeface.SERIF
-                    paint.textSize = dp(20).toFloat()
-                    canvas.drawText("✦", w / 2f, h / 2f + dp(7), paint)
-                }
-            }.apply { contentDescription = "Carta coperta dell'avversario" }
-            val params = LinearLayout.LayoutParams(dp(72), dp(98))
-            params.setMargins(dp(4), 0, dp(4), 0)
-            row.addView(back, params)
-        }
-        return row
-    }
+    private val cardRenderer by lazy { it.studiosmus.carte.ui.CardRenderer(this, gold, ivory) }
 
     private fun showHome() {
+        currentScreen = 0
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -372,10 +181,10 @@ class MainActivity : Activity() {
                 fireplaceEnabled = !fireplaceEnabled
                 saveAmbience()
                 if (fireplaceEnabled) {
-                    soundscape.start()
+                    soundscape.setFireplaceEnabled(true)
                     salonAudio.start()
                 } else {
-                    soundscape.stop()
+                    soundscape.setFireplaceEnabled(false)
                     salonAudio.stop()
                 }
                 text = if (fireplaceEnabled) "CAMINO ACCESO - TOCCA PER SPEGNERE"
@@ -390,10 +199,12 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, dp(66)))
         root.addView(label("SOLO OFFLINE  •  NESSUN ACCOUNT", 11f, gold))
         root.addView(label("Scopa e Briscola · Gioca offline", 12f, ivory))
-        setContentView(scroll)
+        installScreen(scroll)
     }
 
     private fun showAudioSettings(returnToBriscola: Boolean = false) {
+        currentScreen = 1
+        audioReturnsToBriscola = returnToBriscola
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(22), dp(28), dp(22), dp(28))
@@ -431,7 +242,7 @@ class MainActivity : Activity() {
                 })
             })
         }
-        root.addView(Button(this).apply { text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"; setOnClickListener { fireplaceEnabled = !fireplaceEnabled; saveAmbience(); if (fireplaceEnabled) { soundscape.start(); salonAudio.start() } else { soundscape.stop(); salonAudio.stop() }; text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO" } })
+        root.addView(Button(this).apply { text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"; setOnClickListener { fireplaceEnabled = !fireplaceEnabled; saveAmbience(); if (fireplaceEnabled) { soundscape.setFireplaceEnabled(true); salonAudio.start() } else { soundscape.setFireplaceEnabled(false); salonAudio.stop() }; text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO" } })
         slider("Camino", ambience.fireplace) { ambience = ambience.copy(fireplace = it) }
         slider("Jazz", ambience.jazz) { ambience = ambience.copy(jazz = it) }
         slider("Conversazioni", ambience.conversations) { ambience = ambience.copy(conversations = it) }
@@ -458,8 +269,8 @@ class MainActivity : Activity() {
         root.addView(label(audioStatus, 14f, ivory).apply {
             setPadding(dp(10), dp(12), dp(10), dp(18))
         })
-        root.addView(label("Camino: generato offline. Effetti delle carte: non ancora inclusi. I cursori degli audio mancanti salvano le preferenze, ma non producono suono.", 13f, gold))
-        setContentView(scroll)
+        root.addView(label("Camino e carte: effetti offline indipendenti. Le registrazioni ambientali non incluse restano silenziose; le preferenze vengono salvate.", 13f, gold))
+        installScreen(scroll)
     }
 
     private fun gameButton(root: LinearLayout, title: String, subtitle: String) {
@@ -479,35 +290,13 @@ class MainActivity : Activity() {
         root.addView(box, params)
     }
 
-    private fun showComingSoon(title: String) {
-        android.app.AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage("Il tavolo di gioco è in costruzione. Le regole sono in fase di integrazione.")
-            .setPositiveButton("Torna al menu", null)
-            .show()
-    }
-    private fun startScopa() {
-        scopa = ScopaGame()
-        advanceScopaComputer()
-        renderScopa()
-    }
-
-    private fun advanceScopaComputer() {
-        val match = scopa ?: return
-        while (!match.finished && match.turn == 1) {
-            val (card, capture) = match.aiMove()
-            if (!match.play(1, card, capture)) break
-        }
-    }
+    private fun startScopa() = scopaSession.start()
 
     private fun playScopaCard(card: Card) {
-        val match = scopa ?: return
-        val choices = match.options(card)
+        val match = scopaSession.game ?: return
+        val choices = scopaSession.options(card)
         if (choices.size <= 1) {
-            if (match.play(0, card, choices.firstOrNull())) {
-                advanceScopaComputer()
-                renderScopa()
-            }
+            scopaSession.play(card, choices.firstOrNull())
             return
         }
         val labels = choices.map { capture ->
@@ -516,230 +305,38 @@ class MainActivity : Activity() {
         android.app.AlertDialog.Builder(this)
             .setTitle("Scegli la presa")
             .setItems(labels) { _, index ->
-                if (match.play(0, card, choices[index])) {
-                    advanceScopaComputer()
-                    renderScopa()
-                }
+                if (scopaSession.game === match) scopaSession.play(card, choices[index])
             }
             .setNegativeButton("Annulla", null)
             .show()
     }
 
     private fun renderScopa() {
-        val match = scopa ?: return
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(12), dp(12), dp(12), dp(16))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(7, 30, 26), forest, Color.rgb(5, 25, 22)))
-        }
-        val scroll = ScrollView(this).apply { isFillViewport = true }
-        scroll.addView(root)
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        header.addView(label("‹ MENU", 14f, gold, true).apply {
-            setPadding(dp(8), dp(10), dp(8), dp(10))
-            setOnClickListener { scopa = null; showHome() }
-        })
-        header.addView(label("SCOPA", 25f, ivory, true),
-            LinearLayout.LayoutParams(0, -2, 1f))
-        root.addView(header, LinearLayout.LayoutParams(-1, -2))
-        root.addView(label("SCOPE · TU ${match.scope[0]} — ${match.scope[1]} COMPUTER", 15f, gold, true))
-        root.addView(label("Carte raccolte: ${match.captured[0].size} — ${match.captured[1].size}", 12f, ivory))
-        root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
-        root.addView(cardBackRow(match.hands[1].size))
-        val felt = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(12), dp(8), dp(12))
-            background = panel(Color.rgb(18, 83, 62), 22, Color.rgb(121, 139, 82))
-        }
-        felt.addView(label("SUL TAVOLO", 13f, gold, true))
-        if (match.table.isEmpty()) {
-            felt.addView(label("Tavolo libero", 15f, ivory).apply {
-                setPadding(dp(8), dp(24), dp(8), dp(24))
-            })
-        } else {
-            felt.addView(cardRow(match.table))
-        }
-        root.addView(felt, LinearLayout.LayoutParams(-1, -2))
-        root.addView(label(match.lastMove, 13f, gold))
-        if (match.finished) {
-            val score = match.score()
-            val outcome = when {
-                score[0] > score[1] -> "HAI VINTO!"
-                score[0] < score[1] -> "HA VINTO IL COMPUTER"
-                else -> "PAREGGIO"
-            }
-            root.addView(label(outcome, 26f, gold, true))
-            root.addView(label("Punti finali: ${score[0]} — ${score[1]}", 20f, ivory))
-            root.addView(Button(this).apply {
-                text = "NUOVA PARTITA"
-                setOnClickListener { startScopa() }
-            })
-        } else {
-            root.addView(label("LE TUE CARTE · TOCCA PER GIOCARE", 13f, gold, true))
-            root.addView(cardRow(match.hands[0]) { card -> if (match.turn == 0) playScopaCard(card) })
-        }
-        setContentView(scroll)
+        if (scopaSession.game == null) return
+        currentScreen = 3
+        installScreen(it.studiosmus.carte.ui.ScopaScreen(
+            this, scopaSession, cardRenderer,
+            onBack = { scopaSession.stop(); showHome() },
+            onNewGame = { startScopa() },
+            onPlay = { card -> playScopaCard(card) }
+        ).render())
     }
 
-    private fun startBriscola() {
-        gameHandler.removeCallbacksAndMessages(null)
-        computerPending = false
-        trickPreview = null
-        trickResolving = false
-        game = BriscolaGame()
-        advanceComputer()
-        renderBriscola()
-    }
-
-    private fun playBriscola(player: Int, card: Card) {
-        val match = game ?: return
-        if (trickResolving || match.finished || match.turn != player) return
-        val first = match.lead
-        if (first == null) {
-            if (match.play(player, card)) {
-                renderBriscola()
-                if (match.turn == 1) advanceComputer()
-            }
-            return
-        }
-        // Keep both played cards on the felt while the trick is being awarded.
-        trickPreview = first.second to card
-        trickResolving = true
-        renderBriscola()
-        gameHandler.postDelayed({
-            if (game !== match) return@postDelayed
-            match.play(player, card)
-            trickPreview = null
-            trickResolving = false
-            renderBriscola()
-            if (match.turn == 1) advanceComputer()
-        }, 1000L)
-    }
-
-    private fun advanceComputer() {
-        val match = game ?: return
-        if (match.finished || match.turn != 1 || computerPending || trickResolving) return
-        computerPending = true
-        gameHandler.postDelayed({
-            computerPending = false
-            if (game !== match || match.finished || match.turn != 1) return@postDelayed
-            playBriscola(1, match.aiCard())
-        }, 850L)
-    }
+    private fun startBriscola() = briscolaSession.start()
+    private fun advanceComputer() = briscolaSession.advanceComputer()
 
     private fun cardName(card: Card): String =
         "${card.rank.number} ${card.suit.name.lowercase().replaceFirstChar { it.uppercase() }}"
 
     private fun renderBriscola() {
-        val match = game ?: return
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(10), dp(8), dp(10), dp(10))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(7, 30, 26), Color.rgb(20, 94, 68), forest))
-        }
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        header.addView(label("‹", 30f, gold, true).apply {
-            setPadding(dp(12), dp(4), dp(12), dp(4))
-            setOnClickListener {
-                gameHandler.removeCallbacksAndMessages(null)
-                computerPending = false
-                trickPreview = null
-                trickResolving = false
-                game = null
-                showHome()
-            }
-        })
-        header.addView(label("BRISCOLA", 19f, ivory, true),
-            LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(label("⚙", 23f, gold).apply {
-            setPadding(dp(12), dp(4), dp(12), dp(4))
-            setOnClickListener {
-                // Finish the current trick before opening settings: a pending
-                // callback must never replace the settings screen unexpectedly.
-                if (!trickResolving && !computerPending) {
-                    showAudioSettings(returnToBriscola = true)
-                }
-            }
-        })
-        root.addView(header, LinearLayout.LayoutParams(-1, -2))
-        root.addView(cardBackRow(match.hands[1].size))
-        root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
-
-        val table = FrameLayout(this).apply {
-            background = panel(Color.rgb(23, 103, 76), 24, Color.rgb(73, 125, 89))
-        }
-        root.addView(table, LinearLayout.LayoutParams(-1, 0, 1f).apply {
-            topMargin = dp(8)
-            bottomMargin = dp(8)
-        })
-        // The exposed trump lies sideways underneath the covered stock.
-        if (match.remainingCards > 0) {
-            val trump = cardTile(match.trumpCard).apply {
-                rotation = 90f
-                pivotX = dp(39).toFloat()
-                pivotY = dp(64).toFloat()
-            }
-            table.addView(trump, FrameLayout.LayoutParams(dp(78), dp(129), Gravity.START or Gravity.CENTER_VERTICAL).apply {
-                leftMargin = dp(38)
-            })
-            if (match.remainingCards > 1) {
-                val back = cardBackRow(1)
-                table.addView(back, FrameLayout.LayoutParams(dp(90), dp(120),
-                    Gravity.START or Gravity.CENTER_VERTICAL))
-            }
-            table.addView(label("${match.remainingCards}", 17f, ivory, true).apply {
-                background = panel(Color.rgb(17, 63, 52), 18)
-            }, FrameLayout.LayoutParams(dp(44), dp(38),
-                Gravity.START or Gravity.CENTER_VERTICAL).apply {
-                leftMargin = dp(22)
-                topMargin = dp(64)
-            })
-        }
-        val lead = match.lead
-        if (lead != null) {
-            table.addView(cardTile(lead.second),
-                FrameLayout.LayoutParams(dp(86), dp(141), Gravity.CENTER).apply {
-                    leftMargin = dp(112)
-                })
-        }
-        trickPreview?.let { (_, second) ->
-            table.addView(cardTile(second),
-                FrameLayout.LayoutParams(dp(86), dp(141), Gravity.CENTER).apply {
-                    leftMargin = dp(170)
-                    topMargin = dp(32)
-                })
-        }
-        val tableMessage = when {
-            trickResolving -> "PRESA IN CORSO"
-            lead?.first == 1 -> "IL COMPUTER HA GIOCATO"
-            lead?.first == 0 -> "HAI GIOCATO"
-            else -> match.lastTrick.ifEmpty { "TOCCA A TE" }
-        }
-        table.addView(label(tableMessage, 12f, ivory, true),
-            FrameLayout.LayoutParams(-1, dp(38), Gravity.BOTTOM))
-        root.addView(label("TU  ·  ${match.points[0]} PUNTI", 14f, gold, true))
-        if (match.finished) {
-            root.addView(label(match.result(), 24f, ivory, true))
-            root.addView(Button(this).apply {
-                text = "NUOVA PARTITA"
-                setOnClickListener { startBriscola() }
-            })
-        } else {
-            root.addView(cardRow(match.hands[0]) { card ->
-                if (match.turn == 0 && !trickResolving) playBriscola(0, card)
-            })
-        }
-        setContentView(root)
+        if (game == null) return
+        currentScreen = 2
+        installScreen(it.studiosmus.carte.ui.BriscolaScreen(
+            this, briscolaSession, cardRenderer,
+            onBack = { briscolaSession.stop(); showHome() },
+            onSettings = { showAudioSettings(returnToBriscola = true) },
+            onNewGame = { startBriscola() }
+        ).render())
     }
 
 }
