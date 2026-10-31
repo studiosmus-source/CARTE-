@@ -517,36 +517,12 @@ class MainActivity : Activity() {
                 topMargin = dp(64)
             })
         }
-        // Position trick cards inside the space left by the stock, using the
-        // actual measured table width rather than screen-dependent dp offsets.
         val lead = match.lead
         val leadView = lead?.let { cardTile(it.second) }
         val replyView = trickPreview?.let { cardTile(it.second) }
-        if (leadView != null) table.addView(leadView)
-        if (replyView != null) table.addView(replyView)
-        var lastTableWidth = -1
-        table.addOnLayoutChangeListener { _, left, _, right, _, _, _, _, _ ->
-            val width = right - left
-            if (width <= 0 || width == lastTableWidth) return@addOnLayoutChangeListener
-            lastTableWidth = width
-            val stockSpace = if (match.remainingCards > 0) dp(125) else dp(8)
-            val available = (width - stockSpace - dp(8)).coerceAtLeast(dp(60))
-            val cardWidth = minOf(dp(86), available)
-            val cardHeight = (cardWidth * 141f / 86f).toInt()
-            val centerX = stockSpace + available / 2
-            val shift = if (replyView != null) minOf(dp(20), available / 8) else 0
-            fun position(view: View?, x: Int, yOffset: Int) {
-                if (view == null) return
-                view.layoutParams = FrameLayout.LayoutParams(cardWidth, cardHeight,
-                    Gravity.TOP or Gravity.START).apply {
-                    leftMargin = x.coerceIn(0, (width - cardWidth).coerceAtLeast(0))
-                    topMargin = ((table.height - cardHeight) / 2 + yOffset)
-                        .coerceIn(0, (table.height - cardHeight).coerceAtLeast(0))
-                }
-            }
-            position(leadView, centerX - cardWidth / 2 - shift, -dp(10))
-            position(replyView, centerX - cardWidth / 2 + shift, dp(16))
-        }
+        it.studiosmus.carte.ui.TrickLayout.bind(
+            table, leadView, replyView, match.remainingCards > 0
+        ) { dp(it) }
         val tableMessage = when {
             trickResolving -> "PRESA IN CORSO"
             lead?.first == 1 -> "IL COMPUTER HA GIOCATO"
