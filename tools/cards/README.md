@@ -19,8 +19,7 @@ di nitidezza o nuova compressione delle immagini.
 
 Caricare entrambi gli ZIP in questa cartella sul ramo
 `feat/salon-continuity`. `tools/cards/import_cards.py` controlla i due
-SHA-256 approvati e l'insieme esatto delle 40 carte, poi sostituisce in modo
-atomico l'insieme di file in `app/src/main/assets/cards/` durante la build.
+SHA-256 approvati e l'insieme esatto delle 40 carte, poi sostituisce l'insieme completo di file in `app/src/main/assets/cards/` durante la build.
 Se manca uno dei due file la build si ferma, evitando mazzi misti.
 L'APK è verificato anche confrontando ogni JPEG incorporato con
 l'originale nei due ZIP.
