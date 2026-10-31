@@ -47,10 +47,17 @@ class ScopaScreen(
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
+            // Cards travel between deck, table and hand across sibling bounds.
+            clipChildren = false
+            clipToPadding = false
             setPadding(dp(7), dp(10), dp(7), dp(14))
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(24, 30, 26), Color.rgb(39, 43, 35), Color.rgb(20, 25, 23)))
         }
-        val scroll = ScrollView(context).apply { isFillViewport = true }
+        val scroll = ScrollView(context).apply {
+            isFillViewport = true
+            clipChildren = false
+            clipToPadding = false
+        }
         scroll.addView(root)
         val header = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
