@@ -1,20 +1,30 @@
 package it.studiosmus.carte.ui
 
 import android.view.View
-import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.AccelerateInterpolator
 
-/** View-only movement. Game state is advanced exclusively by the session. */
+/**
+ * Only moves view properties; the game engine and the turn/timer remain in
+ * the two Session classes. A played card has a physical departure and landing,
+ * then a computer-owned FlipCardView turns to show its face.
+ */
 object CardMotion {
     fun reveal(card: View?, fromAbove: Boolean, dp: (Int) -> Int) {
-        travel(card, if (fromAbove) 0f else 0f,
-            if (fromAbove) -dp(110).toFloat() else dp(110).toFloat(),
-            300L)
+        if (card == null) return
+        slide(card,
+            if (fromAbove) dp(31).toFloat() else -dp(28).toFloat(),
+            if (fromAbove) -dp(140).toFloat() else dp(160).toFloat(),
+            if (fromAbove) -7f else 6f, 205L)
+        if (card is FlipCardView) card.reveal(afterMs = 160L)
     }
 
     fun deal(card: View?, fromAbove: Boolean, dp: (Int) -> Int, delay: Long = 0L) {
-        travel(card, if (fromAbove) dp(44).toFloat() else -dp(44).toFloat(),
-            if (fromAbove) -dp(140).toFloat() else -dp(65).toFloat(),
-            460L, delay)
+        // Both hands get cards from the tabletop stock, rather than appearing
+        // out of nothing at the top/bottom edge.
+        slide(card, if (fromAbove) dp(85).toFloat() else -dp(80).toFloat(),
+            if (fromAbove) dp(140).toFloat() else -dp(160).toFloat(),
+            if (fromAbove) 9f else -8f, 380L, delay)
     }
 
     fun collect(card: View?, toComputer: Boolean, dp: (Int) -> Int) =
@@ -24,27 +34,30 @@ object CardMotion {
         if (card == null) return
         card.animate().cancel()
         card.animate()
-            .translationX(dp(70).toFloat())
-            .translationY(if (toComputer) -dp(180).toFloat() else dp(180).toFloat())
-            .alpha(0f)
-            .scaleX(.88f).scaleY(.88f)
-            .setInterpolator(AccelerateDecelerateInterpolator())
+            .translationX(if (toComputer) dp(132).toFloat() else -dp(132).toFloat())
+            .translationY(if (toComputer) -dp(165).toFloat() else dp(170).toFloat())
+            .rotation(if (toComputer) 12f else -10f)
+            .alpha(0f).scaleX(.67f).scaleY(.67f)
+            .setInterpolator(AccelerateInterpolator(1.35f))
             .setStartDelay(delay)
             .setDuration(320L).start()
     }
 
-    private fun travel(card: View?, x: Float, y: Float, duration: Long, delay: Long = 0L) {
-        if (card == null) return
+    private fun slide(card: View, x: Float, y: Float, angle: Float,
+                      duration: Long, delay: Long = 0L) {
         card.animate().cancel()
-        card.alpha = 0.35f
+        val destinationAngle = card.rotation
+        card.alpha = 1f
         card.translationX = x
         card.translationY = y
-        card.scaleX = .92f
-        card.scaleY = .92f
+        card.rotation = angle
+        card.scaleX = .89f
+        card.scaleY = .89f
         card.animate()
             .translationX(0f).translationY(0f)
+            .rotation(destinationAngle)
             .alpha(1f).scaleX(1f).scaleY(1f)
-            .setInterpolator(AccelerateDecelerateInterpolator())
+            .setInterpolator(DecelerateInterpolator(1.55f))
             .setStartDelay(delay)
             .setDuration(duration).start()
     }
