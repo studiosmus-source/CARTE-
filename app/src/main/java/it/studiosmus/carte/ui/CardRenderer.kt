@@ -171,7 +171,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             }
         }
 
-    fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null): View {
+    fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null, dealFrom: Boolean? = null): View {
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -179,12 +179,13 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             clipToPadding = false
             setPadding(dp(8), dp(10), dp(8), dp(10))
         }
-        cards.forEach { card ->
+        cards.forEachIndexed { index, card ->
             val tile = if (action == null) cardTile(card) else cardTile(card, true) { action(card) }
             // Match the original 1920×3173 scans without stretching the artwork.
             val params = LinearLayout.LayoutParams(dp(78), dp(129))
             params.setMargins(dp(3), 0, dp(3), 0)
             row.addView(tile, params)
+            if (dealFrom != null) CardMotion.deal(tile, dealFrom, ::dp, index * 85L)
         }
         return HorizontalScrollView(context).apply {
             isHorizontalScrollBarEnabled = false
@@ -196,7 +197,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
         }
     }
 
-    fun cardBackRow(count: Int): View {
+    fun cardBackRow(count: Int, animateDeal: Boolean = false): View {
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -204,7 +205,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             clipToPadding = false
             setPadding(dp(8), dp(10), dp(8), dp(10))
         }
-        repeat(count) {
+        repeat(count) { index ->
             val back = object : View(context) {
                 private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
                 override fun onDraw(canvas: android.graphics.Canvas) {
@@ -248,6 +249,7 @@ class CardRenderer(private val context: Context, private val gold: Int, private 
             val params = LinearLayout.LayoutParams(dp(72), dp(98))
             params.setMargins(dp(4), 0, dp(4), 0)
             row.addView(back, params)
+            if (animateDeal) CardMotion.deal(back, true, ::dp, index * 85L)
         }
         return row
     }
