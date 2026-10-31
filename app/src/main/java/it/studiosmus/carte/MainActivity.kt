@@ -29,11 +29,11 @@ import android.widget.TextView
  * Uses Android platform widgets without additional UI dependencies.
  */
 class MainActivity : Activity() {
-    private val gameHandler = Handler(Looper.getMainLooper())
-    private var computerPending = false
-    private var trickPreview: Pair<Card, Card>? = null
-    private var trickResolving = false
-    private var game: BriscolaGame? = null
+    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession { renderBriscola() } }
+    private val game get() = briscolaSession.game
+    private val computerPending get() = briscolaSession.computerPending
+    private val trickPreview get() = briscolaSession.trickPreview
+    private val trickResolving get() = briscolaSession.trickResolving
     private var scopa: ScopaGame? = null
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
@@ -76,7 +76,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
-        gameHandler.removeCallbacksAndMessages(null)
+        briscolaSession.stop()
         soundscape.release()
         salonAudio.stop()
         super.onDestroy()
@@ -398,51 +398,9 @@ class MainActivity : Activity() {
         installScreen(scroll)
     }
 
-    private fun startBriscola() {
-        gameHandler.removeCallbacksAndMessages(null)
-        computerPending = false
-        trickPreview = null
-        trickResolving = false
-        game = BriscolaGame()
-        advanceComputer()
-        renderBriscola()
-    }
-
-    private fun playBriscola(player: Int, card: Card) {
-        val match = game ?: return
-        if (trickResolving || match.finished || match.turn != player) return
-        val first = match.lead
-        if (first == null) {
-            if (match.play(player, card)) {
-                renderBriscola()
-                if (match.turn == 1) advanceComputer()
-            }
-            return
-        }
-        // Keep both played cards on the felt while the trick is being awarded.
-        trickPreview = first.second to card
-        trickResolving = true
-        renderBriscola()
-        gameHandler.postDelayed({
-            if (game !== match) return@postDelayed
-            match.play(player, card)
-            trickPreview = null
-            trickResolving = false
-            renderBriscola()
-            if (match.turn == 1) advanceComputer()
-        }, 1000L)
-    }
-
-    private fun advanceComputer() {
-        val match = game ?: return
-        if (match.finished || match.turn != 1 || computerPending || trickResolving) return
-        computerPending = true
-        gameHandler.postDelayed({
-            computerPending = false
-            if (game !== match || match.finished || match.turn != 1) return@postDelayed
-            playBriscola(1, match.aiCard())
-        }, 850L)
-    }
+    private fun startBriscola() = briscolaSession.start()
+    private fun playBriscola(player: Int, card: Card) = briscolaSession.play(player, card)
+    private fun advanceComputer() = briscolaSession.advanceComputer()
 
     private fun cardName(card: Card): String =
         "${card.rank.number} ${card.suit.name.lowercase().replaceFirstChar { it.uppercase() }}"
@@ -463,11 +421,7 @@ class MainActivity : Activity() {
         header.addView(label("‹", 30f, gold, true).apply {
             setPadding(dp(12), dp(4), dp(12), dp(4))
             setOnClickListener {
-                gameHandler.removeCallbacksAndMessages(null)
-                computerPending = false
-                trickPreview = null
-                trickResolving = false
-                game = null
+                briscolaSession.stop()
                 showHome()
             }
         })
