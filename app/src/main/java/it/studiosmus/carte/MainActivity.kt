@@ -9,7 +9,6 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.audio.SalonAudio
 import it.studiosmus.carte.core.Card
 import android.widget.SeekBar
@@ -24,10 +23,9 @@ import android.widget.TextView
  * Uses Android platform widgets without additional UI dependencies.
  */
 class MainActivity : Activity() {
-    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession({ renderBriscola() }, { if (!salonAudio.playCard(it)) soundscape.playCard(it) }) }
+    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession({ renderBriscola() }, { salonAudio.playCard(it); Unit }) }
     private val game get() = briscolaSession.game
-    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ renderScopa() }, { if (!salonAudio.playCard(it)) soundscape.playCard(it) }) }
-    private val soundscape = Soundscape()
+    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ renderScopa() }, { salonAudio.playCard(it); Unit }) }
     private val salonAudio by lazy { SalonAudio(this) }
     private var currentScreen = 0 // home=0, audio=1, briscola=2, scopa=3, table=4
     private var preludeGame = 2
@@ -73,7 +71,6 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
-        soundscape.stop()
         salonAudio.stop()
         super.onPause()
     }
@@ -89,23 +86,18 @@ class MainActivity : Activity() {
         displayedScreen?.animate()?.cancel()
         briscolaSession.stop()
         scopaSession.stop()
-        soundscape.release()
         salonAudio.stop()
         super.onDestroy()
     }
 
     private fun applyAmbience() {
-        soundscape.setVolume(Soundscape.Channel.FIREPLACE, ambience.fireplace)
-        soundscape.setVolume(Soundscape.Channel.CARDS, ambience.cards)
         salonAudio.configure(ambience)
         updateFireplacePlayback()
     }
 
     private fun updateFireplacePlayback() {
-        val inSalon = currentScreen == 2 || currentScreen == 3 ||
-            currentScreen == 4 || (currentScreen == 1 && audioReturnsToBriscola)
-        soundscape.setFireplaceEnabled(fireplaceEnabled && inSalon &&
-            !salonAudio.hasRecording("salon_fireplace"))
+        // The room mixer silences the fireplace outside the salon automatically.
+        // Do not resurrect the old noise generator when a sample is missing.
         salonAudio.setFireplaceEnabled(fireplaceEnabled)
     }
 
@@ -272,25 +264,30 @@ class MainActivity : Activity() {
         slider("Carte", ambience.cards) { ambience = ambience.copy(cards = it) }
         val recordings = listOf(
             "Jazz" to "salon_jazz",
+            "Camino" to "salon_fireplace",
+            "Carte: distribuzione" to "salon_card_deal",
+            "Carte: giocata" to "salon_card_play",
+            "Carte: raccolta" to "salon_card_collect",
             "Conversazioni" to "salon_conversation",
             "Bicchieri" to "salon_glassware",
+            "Sedie" to "salon_chair",
+            "Passi sul parquet" to "salon_footsteps",
+            "Battimani" to "salon_applause",
             "Porte" to "salon_door"
         )
         val available = recordings.filter { (_, resource) ->
             resources.getIdentifier(resource, "raw", packageName) != 0
         }
-        val audioStatus = if (available.size == recordings.size) {
-            "Registrazioni ambientali disponibili: 4/4"
-        } else {
-            "Registrazioni disponibili: ${available.size}/4\n" +
-                recordings.filterNot { it in available }
-                    .joinToString("\n") { (title, _) -> "• $title: audio non ancora incluso" }
-        }
+        val audioStatus = "Registrazioni disponibili: ${available.size}/${recordings.size}\n" +
+            recordings.joinToString("\n") { (title, resource) ->
+                "$title: " + if (resources.getIdentifier(resource, "raw", packageName) != 0)
+                    "presente" else "non incluso"
+            }
         root.addView(label("DIAGNOSTICA AUDIO", 18f, gold, true))
         root.addView(label(audioStatus, 14f, ivory).apply {
             setPadding(dp(10), dp(12), dp(10), dp(18))
         })
-        root.addView(label("Camino e carte: effetti offline indipendenti. Le registrazioni ambientali non incluse restano silenziose; le preferenze vengono salvate.", 13f, gold))
+        root.addView(label("Solo registrazioni reali: i suoni non ancora inclusi restano silenziosi, senza rumori artificiali.", 13f, gold))
         installScreen(scroll)
     }
 
@@ -319,7 +316,6 @@ class MainActivity : Activity() {
         val token = ++navigationToken
         val outgoing = displayedScreen
         salonAudio.enterScene(SalonAudio.Scene.BLACK, 850L)
-        soundscape.setFireplaceEnabled(false)
         fun reveal() {
             if (token != navigationToken || isFinishing || isDestroyed) return
             briscolaSession.stop()
@@ -341,7 +337,6 @@ class MainActivity : Activity() {
         val token = ++navigationToken
         val outgoing = displayedScreen
         salonAudio.enterScene(SalonAudio.Scene.BLACK, 850L)
-        soundscape.setFireplaceEnabled(false)
         fun reveal() {
             if (token != navigationToken || isFinishing || isDestroyed) return
             briscolaSession.stop()
