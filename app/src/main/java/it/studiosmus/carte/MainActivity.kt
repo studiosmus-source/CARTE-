@@ -8,6 +8,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.audio.SalonAudio
 import it.studiosmus.carte.core.Card
@@ -23,12 +24,16 @@ import android.widget.TextView
  * Uses Android platform widgets without additional UI dependencies.
  */
 class MainActivity : Activity() {
-    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession({ renderBriscola() }, { soundscape.playCard(it) }) }
+    private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession({ renderBriscola() }, { if (!salonAudio.playCard(it)) soundscape.playCard(it) }) }
     private val game get() = briscolaSession.game
-    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ renderScopa() }, { soundscape.playCard(it) }) }
+    private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession({ renderScopa() }, { if (!salonAudio.playCard(it)) soundscape.playCard(it) }) }
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
-    private var currentScreen = 0 // home=0, audio=1, briscola=2, scopa=3
+    private var currentScreen = 0 // home=0, audio=1, briscola=2, scopa=3, table=4
+    private var preludeGame = 2
+    private var displayedScreen: View? = null
+    private var navigationToken = 0
+    private var announcedResult: Any? = null
     private var audioReturnsToBriscola = false
     private var fireplaceEnabled = false
     private var ambience = AmbienceSettings()
@@ -40,6 +45,8 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = Color.rgb(8, 35, 30)
         window.navigationBarColor = Color.rgb(8, 35, 30)
+        (findViewById<View>(android.R.id.content) as ViewGroup).setBackgroundColor(Color.BLACK)
+        salonAudio.enterScene(SalonAudio.Scene.HOME, 0L)
         val prefs = getSharedPreferences("ambience", MODE_PRIVATE)
         fireplaceEnabled = prefs.getBoolean("enabled", false)
         ambience = AmbienceSettings(
@@ -60,6 +67,7 @@ class MainActivity : Activity() {
             1 -> showAudioSettings(audioReturnsToBriscola)
             2 -> renderBriscola()
             3 -> renderScopa()
+            4 -> showPrelude()
             else -> showHome()
         }
     }
@@ -73,10 +81,12 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         soundscape.setFireplaceEnabled(fireplaceEnabled)
-        if (fireplaceEnabled) salonAudio.start()
+        salonAudio.start()
     }
 
     override fun onDestroy() {
+        navigationToken++
+        displayedScreen?.animate()?.cancel()
         briscolaSession.stop()
         scopaSession.stop()
         soundscape.release()
@@ -87,8 +97,9 @@ class MainActivity : Activity() {
     private fun applyAmbience() {
         soundscape.setVolume(Soundscape.Channel.FIREPLACE, ambience.fireplace)
         soundscape.setVolume(Soundscape.Channel.CARDS, ambience.cards)
-        soundscape.setFireplaceEnabled(fireplaceEnabled)
+        soundscape.setFireplaceEnabled(fireplaceEnabled && !salonAudio.hasRecording("salon_fireplace"))
         salonAudio.configure(ambience)
+        salonAudio.setFireplaceEnabled(fireplaceEnabled)
     }
 
     private fun saveAmbience() {
@@ -120,6 +131,7 @@ class MainActivity : Activity() {
                 bottom + insets.systemWindowInsetBottom)
             insets
         }
+        displayedScreen = view
         setContentView(view)
         view.requestApplyInsets()
     }
@@ -180,13 +192,9 @@ class MainActivity : Activity() {
             setOnClickListener {
                 fireplaceEnabled = !fireplaceEnabled
                 saveAmbience()
-                if (fireplaceEnabled) {
-                    soundscape.setFireplaceEnabled(true)
-                    salonAudio.start()
-                } else {
-                    soundscape.setFireplaceEnabled(false)
-                    salonAudio.stop()
-                }
+                // Fireplace is independent of jazz and the other salon layers.
+                soundscape.setFireplaceEnabled(fireplaceEnabled && !salonAudio.hasRecording("salon_fireplace"))
+                salonAudio.setFireplaceEnabled(fireplaceEnabled)
                 text = if (fireplaceEnabled) "CAMINO ACCESO - TOCCA PER SPEGNERE"
                        else "CAMINO: ACCENDI"
             }
@@ -242,7 +250,14 @@ class MainActivity : Activity() {
                 })
             })
         }
-        root.addView(Button(this).apply { text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"; setOnClickListener { fireplaceEnabled = !fireplaceEnabled; saveAmbience(); if (fireplaceEnabled) { soundscape.setFireplaceEnabled(true); salonAudio.start() } else { soundscape.setFireplaceEnabled(false); salonAudio.stop() }; text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO" } })
+        root.addView(Button(this).apply {
+            text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"
+            setOnClickListener {
+                fireplaceEnabled = !fireplaceEnabled
+                saveAmbience()
+                text = if (fireplaceEnabled) "SPEGNI CAMINO" else "PROVA IL CAMINO"
+            }
+        })
         slider("Camino", ambience.fireplace) { ambience = ambience.copy(fireplace = it) }
         slider("Jazz", ambience.jazz) { ambience = ambience.copy(jazz = it) }
         slider("Conversazioni", ambience.conversations) { ambience = ambience.copy(conversations = it) }
@@ -281,7 +296,7 @@ class MainActivity : Activity() {
             background = panel(Color.rgb(20, 65, 54))
             isClickable = true
             isFocusable = true
-            setOnClickListener { if (title == "BRISCOLA") startBriscola() else startScopa() }
+            setOnClickListener { navigateToPrelude(if (title == "BRISCOLA") 2 else 3) }
         }
         box.addView(label(title, 25f, ivory, true))
         box.addView(label(subtitle, 13f, gold))
@@ -291,6 +306,79 @@ class MainActivity : Activity() {
     }
 
     private fun startScopa() = scopaSession.start()
+
+    /** Fade to genuine black before revealing an EMPTY, un-dealt table. */
+    private fun navigateToPrelude(type: Int) {
+        if (type != 2 && type != 3) return
+        val token = ++navigationToken
+        val outgoing = displayedScreen
+        salonAudio.enterScene(SalonAudio.Scene.BLACK, 850L)
+        fun reveal() {
+            if (token != navigationToken || isFinishing || isDestroyed) return
+            briscolaSession.stop()
+            scopaSession.stop()
+            preludeGame = type
+            showPrelude()
+            val incoming = displayedScreen ?: return
+            incoming.alpha = 0f
+            salonAudio.enterScene(SalonAudio.Scene.SALON, 1600L)
+            incoming.animate().alpha(1f).setDuration(1600L).start()
+        }
+        if (outgoing == null) reveal()
+        else outgoing.animate().alpha(0f).setDuration(850L).withEndAction(::reveal).start()
+    }
+
+    /** Leaving the table always fades OUT to black, then home fades IN. */
+    private fun navigateHome() {
+        val token = ++navigationToken
+        val outgoing = displayedScreen
+        salonAudio.enterScene(SalonAudio.Scene.BLACK, 850L)
+        fun reveal() {
+            if (token != navigationToken || isFinishing || isDestroyed) return
+            briscolaSession.stop()
+            scopaSession.stop()
+            showHome()
+            val incoming = displayedScreen ?: return
+            incoming.alpha = 0f
+            salonAudio.enterScene(SalonAudio.Scene.HOME, 1600L)
+            incoming.animate().alpha(1f).setDuration(1600L).start()
+        }
+        if (outgoing == null) reveal()
+        else outgoing.animate().alpha(0f).setDuration(850L).withEndAction(::reveal).start()
+    }
+
+    /** No cards are constructed until the player explicitly presses AVVIA. */
+    private fun showPrelude() {
+        currentScreen = 4
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(16), dp(24), dp(16), dp(28))
+            setBackgroundColor(Color.rgb(15, 20, 17))
+        }
+        root.addView(label("‹ MENU", 16f, gold, true).apply {
+            setPadding(dp(8), dp(8), dp(8), dp(16))
+            setOnClickListener { navigateHome() }
+        })
+        root.addView(label(if (preludeGame == 2) "BRISCOLA" else "SCOPA", 26f, ivory, true))
+        root.addView(View(this), LinearLayout.LayoutParams(1, dp(20)))
+        root.addView(it.studiosmus.carte.ui.SalonTable(this),
+            LinearLayout.LayoutParams(-1, 0, 1f).apply {
+                topMargin = dp(10)
+                bottomMargin = dp(22)
+            })
+        root.addView(Button(this).apply {
+            text = "AVVIA"
+            textSize = 20f
+            setTextColor(ivory)
+            background = panel(Color.rgb(70, 48, 33), 16)
+            setOnClickListener {
+                if (preludeGame == 2) startBriscola() else startScopa()
+            }
+        }, LinearLayout.LayoutParams(-1, dp(64)))
+        installScreen(root)
+    }
+
 
     private fun playScopaCard(card: Card) {
         val match = scopaSession.game ?: return
@@ -312,12 +400,17 @@ class MainActivity : Activity() {
     }
 
     private fun renderScopa() {
-        if (scopaSession.game == null) return
+        val match = scopaSession.game ?: return
+        if (match.finished && announcedResult !== match) {
+            announcedResult = match
+            val scores = match.score()
+            salonAudio.playResult(scores[0] > scores[1])
+        }
         currentScreen = 3
         installScreen(it.studiosmus.carte.ui.ScopaScreen(
             this, scopaSession, cardRenderer,
-            onBack = { scopaSession.stop(); showHome() },
-            onNewGame = { startScopa() },
+            onBack = { navigateHome() },
+            onNewGame = { navigateToPrelude(3) },
             onPlay = { card -> playScopaCard(card) }
         ).render())
     }
@@ -325,17 +418,30 @@ class MainActivity : Activity() {
     private fun startBriscola() = briscolaSession.start()
     private fun advanceComputer() = briscolaSession.advanceComputer()
 
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        when (currentScreen) {
+            2, 3, 4 -> navigateHome()
+            1 -> if (audioReturnsToBriscola && game != null) renderBriscola() else showHome()
+            else -> super.onBackPressed()
+        }
+    }
+
     private fun cardName(card: Card): String =
         "${card.rank.number} ${card.suit.name.lowercase().replaceFirstChar { it.uppercase() }}"
 
     private fun renderBriscola() {
-        if (game == null) return
+        val match = game ?: return
+        if (match.finished && announcedResult !== match) {
+            announcedResult = match
+            salonAudio.playResult(match.points[0] > match.points[1])
+        }
         currentScreen = 2
         installScreen(it.studiosmus.carte.ui.BriscolaScreen(
             this, briscolaSession, cardRenderer,
-            onBack = { briscolaSession.stop(); showHome() },
+            onBack = { navigateHome() },
             onSettings = { showAudioSettings(returnToBriscola = true) },
-            onNewGame = { startBriscola() }
+            onNewGame = { navigateToPrelude(2) }
         ).render())
     }
 
