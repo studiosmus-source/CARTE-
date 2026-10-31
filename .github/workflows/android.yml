@@ -81,7 +81,10 @@ jobs:
         run: |
           command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
           command -v ffprobe
-      - name: Verify short synchronized card Foley
+      - name: Build nine distinct card-handling recordings (pinned CC0 source)
+        run: |
+          python3 tools/audio/build_card_variations.py
+      - name: Verify nine non-repeating short recorded card cues
         run: python3 tools/audio/check_card_cues.py
       - name: Verify distinct intermittent whisper excerpts
         run: python3 tools/audio/check_whispers.py
@@ -156,12 +159,14 @@ jobs:
           python3 - <<'PY'
           from zipfile import ZipFile
           apk = 'app/build/outputs/apk/debug/app-debug.apk'
-          expected = ('salon_jazz', 'salon_fireplace', 'salon_card_deal',
-                      'salon_card_play', 'salon_card_collect',
+          expected = ('salon_jazz', 'salon_fireplace',
                       'salon_conversation', 'salon_glassware',
                       'salon_chair', 'salon_footsteps', 'salon_applause',
                       'salon_whisper_01', 'salon_whisper_02',
                       'salon_whisper_03', 'salon_whisper_04')
+          expected += tuple(f'salon_card_{kind}_{i:02d}'
+                            for kind in ('deal', 'play', 'collect')
+                            for i in range(1, 4))
           with ZipFile(apk) as z:
               for name in expected:
                   matches = [entry for entry in z.namelist()
