@@ -1,6 +1,8 @@
 package it.studiosmus.carte.ui
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
@@ -12,7 +14,6 @@ import android.graphics.Shader
 import android.os.SystemClock
 import android.view.View
 import android.widget.FrameLayout
-import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -20,8 +21,8 @@ import kotlin.random.Random
 
 /**
  * Portrait-adaptive overhead salon table, inspired by the supplied eight-sided
- * walnut / green felt / Persian rug reference. Procedural paint avoids large
- * bitmaps, network access, frame loops and extra asset dependencies.
+ * walnut / green felt / Persian rug reference. Wood and felt use the
+ * actual supplied photographic materials, bundled offline as WebP assets.
  *
  * This view is only the background. Game cards, stock and touch targets remain
  * independent children of the FrameLayout.
@@ -29,6 +30,22 @@ import kotlin.random.Random
 class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout(context) {
     private val fireAmount = fireplaceIntensity.coerceIn(0f, 1f)
     private val density = resources.displayMetrics.density
+    private val woodTexture by lazy { loadTexture("salon_wood") }
+    private val feltTexture by lazy { loadTexture("salon_felt") }
+
+    private fun loadTexture(name: String): Bitmap? = synchronized(textureCache) {
+        textureCache[name] ?: try {
+            context.assets.open("textures/$name.webp").use { input ->
+                BitmapFactory.decodeStream(input)?.also { textureCache[name] = it }
+            }
+        } catch (_: java.io.IOException) {
+            null // The CI gate rejects missing files; keep crash-safe fallback.
+        }
+    }
+
+    companion object {
+        private val textureCache = mutableMapOf<String, Bitmap>()
+    }
     private fun dp(value: Float) = value * density
 
     private fun octagon(rect: RectF, cutX: Float, cutY: Float): Path {
@@ -142,43 +159,29 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
             canvas.drawPath(outerShape, paint)
             paint.shader = null
 
-            // Grain runs in the direction of each of the eight rail segments,
-            // rather than horizontally across the whole table.
-            val vertices = corners(outer, cutX, cutY)
+            // Real user-supplied walnut texture on the wood ring only.
+            woodTexture?.let { wood ->
+                canvas.save()
+                canvas.clipPath(outerShape)
+                canvas.clipOutPath(innerShape)
+                paint.style = Paint.Style.FILL
+                paint.shader = null
+                paint.alpha = 255
+                paint.isFilterBitmap = true
+                canvas.drawBitmap(wood, null, outer, paint)
+                canvas.restore()
+            }
+            // Gentle overhead sheen adds depth without masking the photograph.
             canvas.save()
             canvas.clipPath(outerShape)
-            canvas.clipOutPath(innerShape) // API 26+, the app's minSdk.
-            val grain = Random(8523)
-            for (edge in 0 until vertices.size) {
-                val a = vertices[edge]
-                val b = vertices[(edge + 1) % vertices.size]
-                val dx = b.first - a.first
-                val dy = b.second - a.second
-                val length = hypot(dx, dy).coerceAtLeast(1f)
-                val nx = -dy / length
-                val ny = dx / length
-                for (line in 0 until 85) {
-                    val offset = rail * 1.65f * (line + .5f) / 85f
-                    val wobble = (grain.nextFloat() - .5f) * dp(5f)
-                    val x1 = a.first + nx * offset
-                    val y1 = a.second + ny * offset
-                    val x2 = b.first + nx * offset
-                    val y2 = b.second + ny * offset
-                    val stroke = Path().apply {
-                        moveTo(x1, y1)
-                        cubicTo(x1 + dx * .33f + nx * wobble,
-                            y1 + dy * .33f + ny * wobble,
-                            x1 + dx * .7f - nx * wobble * .7f,
-                            y1 + dy * .7f - ny * wobble * .7f,
-                            x2, y2)
-                    }
-                    paint.style = Paint.Style.STROKE
-                    paint.strokeWidth = dp(if (line % 9 == 0) .9f else .32f)
-                    paint.color = if (line % 4 == 0)
-                        Color.argb(58, 20, 9, 6) else Color.argb(37, 241, 169, 96)
-                    canvas.drawPath(stroke, paint)
-                }
-            }
+            canvas.clipOutPath(innerShape)
+            paint.style = Paint.Style.FILL
+            paint.shader = LinearGradient(0f, outer.top, w, outer.bottom,
+                intArrayOf(Color.argb(73, 255, 218, 158),
+                    Color.TRANSPARENT, Color.argb(100, 25, 12, 5)),
+                null, Shader.TileMode.CLAMP)
+            canvas.drawRect(outer, paint)
+            paint.shader = null
             canvas.restore()
             paint.style = Paint.Style.STROKE
             paint.shader = null
@@ -198,27 +201,25 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
             paint.shader = null
             canvas.save()
             canvas.clipPath(innerShape)
-            val feltRandom = Random(2244)
-            repeat(2300) {
-                val x = inner.left + feltRandom.nextFloat() * inner.width()
-                val y = inner.top + feltRandom.nextFloat() * inner.height()
-                paint.style = Paint.Style.STROKE
-                paint.strokeWidth = dp(.33f)
-                paint.color = if (it % 3 == 0) Color.argb(30, 190, 199, 164)
-                    else Color.argb(27, 5, 29, 23)
-                canvas.drawLine(x, y, x + dp(.9f), y + dp(.5f), paint)
+            // Real green woven felt supplied by the user.
+            feltTexture?.let { textile ->
+                paint.shader = null
+                paint.style = Paint.Style.FILL
+                paint.alpha = 255
+                paint.isFilterBitmap = true
+                canvas.drawBitmap(textile, null, inner, paint)
             }
             paint.style = Paint.Style.FILL
             paint.shader = RadialGradient(w * .42f, h * .17f,
                 maxOf(w, h) * .9f,
-                intArrayOf(Color.argb(69, 221, 194, 124),
-                    Color.argb(16, 159, 147, 93), Color.TRANSPARENT),
+                intArrayOf(Color.argb(93, 247, 220, 160),
+                    Color.argb(28, 208, 174, 103), Color.TRANSPARENT),
                 null, Shader.TileMode.CLAMP)
             canvas.drawRect(inner, paint)
             paint.shader = null
             paint.shader = RadialGradient(w * .5f, h * .47f,
                 maxOf(w, h) * .77f,
-                intArrayOf(Color.TRANSPARENT, Color.argb(100, 3, 24, 22)),
+                intArrayOf(Color.TRANSPARENT, Color.argb(66, 3, 24, 22)),
                 null, Shader.TileMode.CLAMP)
             canvas.drawRect(inner, paint)
             paint.shader = null
@@ -265,8 +266,8 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
             canvas.clipPath(octagon(outer, outer.width() * .235f, outer.height() * .175f))
             lightPaint.shader = RadialGradient(originX, originY, radius,
                 intArrayOf(
-                    Color.argb((86f * strength).toInt(), 255, 155, 70),
-                    Color.argb((31f * strength).toInt(), 240, 133, 58),
+                    Color.argb((150f * strength).toInt(), 255, 160, 83),
+                    Color.argb((68f * strength).toInt(), 244, 138, 63),
                     Color.TRANSPARENT
                 ),
                 floatArrayOf(0f, .40f, 1f), Shader.TileMode.CLAMP)
