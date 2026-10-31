@@ -36,7 +36,7 @@ class ScopaSession(private val changed: () -> Unit) {
             busy = false
             changed()
             advanceComputer()
-        }, 620L)
+        }, 760L)
     }
 
     fun stop() {
@@ -95,8 +95,8 @@ class ScopaSession(private val changed: () -> Unit) {
                     busy = false
                     changed()
                     advanceComputer()
-                }, if (dealing) 500L else 120L)
-            }, if (collecting) 400L else 170L)
+                }, if (dealing) 760L else 120L)
+            }, if (collecting) 650L else 170L)
         }, 380L)
     }
 
