@@ -205,7 +205,7 @@ class MainActivity : Activity() {
             setOnClickListener { showAudioSettings() }
         }, LinearLayout.LayoutParams(-1, dp(66)))
         root.addView(label("SOLO OFFLINE  •  NESSUN ACCOUNT", 11f, gold))
-        root.addView(label("Scopa e Briscola · Gioca offline", 12f, ivory))
+        root.addView(label("Scopa e Briscola · Gioca offline · v0.1.1", 12f, ivory))
         installScreen(scroll)
     }
 
@@ -270,6 +270,10 @@ class MainActivity : Activity() {
             "Carte: giocata" to "salon_card_play",
             "Carte: raccolta" to "salon_card_collect",
             "Conversazioni" to "salon_conversation",
+            "Bisbiglio breve 1" to "salon_whisper_01",
+            "Bisbiglio breve 2" to "salon_whisper_02",
+            "Bisbiglio breve 3" to "salon_whisper_03",
+            "Bisbiglio breve 4" to "salon_whisper_04",
             "Bicchieri" to "salon_glassware",
             "Sedie" to "salon_chair",
             "Passi sul parquet" to "salon_footsteps",
