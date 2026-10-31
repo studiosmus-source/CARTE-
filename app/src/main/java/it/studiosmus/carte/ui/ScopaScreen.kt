@@ -67,12 +67,12 @@ class ScopaScreen(
         root.addView(label("AVVERSARIO · ${match.hands[1].size} carte", 12f, gold))
         root.addView(renderer.cardBackRow(match.hands[1].size, session.dealing))
         val felt = SalonTable(context).apply {
-            minimumHeight = dp(235)
+            minimumHeight = dp(325)
         }
         val tableContent = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(16), dp(8), dp(16), dp(8))
+            setPadding(dp(32), dp(8), dp(32), dp(8))
         }
         tableContent.addView(label(
             when {
@@ -104,7 +104,7 @@ class ScopaScreen(
                 dp(65), dp(108), Gravity.CENTER))
             CardMotion.reveal(moving, match.turn == 1) { dp(it) }
         }
-        root.addView(felt, LinearLayout.LayoutParams(-1, dp(235)))
+        root.addView(felt, LinearLayout.LayoutParams(-1, dp(325)))
         root.addView(label(
             if (session.dealing) "Si distribuiscono le carte…"
             else if (session.collecting) "Si raccolgono le carte…"
