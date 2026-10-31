@@ -2,23 +2,16 @@ package it.studiosmus.carte
 
 import android.app.Activity
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
-import android.view.WindowInsets
 import it.studiosmus.carte.audio.Soundscape
 import it.studiosmus.carte.audio.SalonAudio
-import it.studiosmus.carte.core.ScopaGame
-import it.studiosmus.carte.core.BriscolaGame
 import it.studiosmus.carte.core.Card
 import android.widget.SeekBar
-import android.widget.HorizontalScrollView
 import it.studiosmus.carte.audio.AmbienceSettings
-import android.widget.FrameLayout
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -31,9 +24,6 @@ import android.widget.TextView
 class MainActivity : Activity() {
     private val briscolaSession by lazy { it.studiosmus.carte.ui.BriscolaSession { renderBriscola() } }
     private val game get() = briscolaSession.game
-    private val computerPending get() = briscolaSession.computerPending
-    private val trickPreview get() = briscolaSession.trickPreview
-    private val trickResolving get() = briscolaSession.trickResolving
     private val scopaSession by lazy { it.studiosmus.carte.ui.ScopaSession { renderScopa() } }
     private val soundscape = Soundscape()
     private val salonAudio by lazy { SalonAudio(this) }
@@ -141,14 +131,6 @@ class MainActivity : Activity() {
         }
 
     private val cardRenderer by lazy { it.studiosmus.carte.ui.CardRenderer(this, gold, ivory) }
-
-    private fun cardTile(card: Card, enabled: Boolean = false, action: (() -> Unit)? = null): View =
-        cardRenderer.cardTile(card, enabled, action)
-
-    private fun cardRow(cards: List<Card>, action: ((Card) -> Unit)? = null): View =
-        cardRenderer.cardRow(cards, action)
-
-    private fun cardBackRow(count: Int): View = cardRenderer.cardBackRow(count)
 
     private fun showHome() {
         val root = LinearLayout(this).apply {
@@ -292,13 +274,6 @@ class MainActivity : Activity() {
         root.addView(box, params)
     }
 
-    private fun showComingSoon(title: String) {
-        android.app.AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage("Il tavolo di gioco è in costruzione. Le regole sono in fase di integrazione.")
-            .setPositiveButton("Torna al menu", null)
-            .show()
-    }
     private fun startScopa() = scopaSession.start()
 
     private fun playScopaCard(card: Card) {
@@ -331,7 +306,6 @@ class MainActivity : Activity() {
     }
 
     private fun startBriscola() = briscolaSession.start()
-    private fun playBriscola(player: Int, card: Card) = briscolaSession.play(player, card)
     private fun advanceComputer() = briscolaSession.advanceComputer()
 
     private fun cardName(card: Card): String =
