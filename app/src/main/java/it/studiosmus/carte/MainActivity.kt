@@ -397,7 +397,7 @@ class MainActivity : Activity() {
         })
         root.addView(label(if (preludeGame == 2) "BRISCOLA" else "SCOPA", 26f, ivory, true))
         root.addView(View(this), LinearLayout.LayoutParams(1, dp(20)))
-        root.addView(it.studiosmus.carte.ui.SalonTable(this, if (fireplaceEnabled) ambience.fireplace else 0f),
+        root.addView(it.studiosmus.carte.ui.SalonTable(this, if (fireplaceEnabled) 1f else 0f),
             LinearLayout.LayoutParams(-1, 0, 1f).apply {
                 topMargin = dp(10)
                 bottomMargin = dp(22)
@@ -447,7 +447,7 @@ class MainActivity : Activity() {
             onBack = { confirmLeaveGame() },
             onNewGame = { navigateToPrelude(3) },
             onPlay = { card -> playScopaCard(card) },
-            fireplaceLight = if (fireplaceEnabled) ambience.fireplace else 0f
+            fireplaceLight = if (fireplaceEnabled) 1f else 0f
         ).render())
     }
 
@@ -502,7 +502,7 @@ class MainActivity : Activity() {
             onBack = { confirmLeaveGame() },
             onSettings = { showAudioSettings(returnToBriscola = true) },
             onNewGame = { navigateToPrelude(2) },
-            fireplaceLight = if (fireplaceEnabled) ambience.fireplace else 0f
+            fireplaceLight = if (fireplaceEnabled) 1f else 0f
         ).render())
     }
 
