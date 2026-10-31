@@ -89,9 +89,9 @@ class ScopaScreen(
             tableContent.addView(renderer.cardRow(match.table))
         }
         if (session.collecting) {
-            val captured = renderer.cardRow(session.collectedCards)
-            tableContent.addView(captured)
-            CardMotion.collect(captured, session.captureWinner == 1) { dp(it) }
+            tableContent.addView(renderer.cardRow(
+                session.collectedCards, collectTo = session.captureWinner == 1
+            ))
         }
         session.preview?.let { card ->
             tableContent.addView(renderer.cardTile(card).apply {
