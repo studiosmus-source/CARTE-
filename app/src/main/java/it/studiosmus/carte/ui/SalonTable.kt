@@ -252,20 +252,21 @@ class SalonTable(context: Context, fireplaceIntensity: Float = 0f) : FrameLayout
             val w = width.toFloat()
             val h = height.toFloat()
             val seconds = SystemClock.uptimeMillis() / 1000f
-            val phase = (.87f + .075f * sin(seconds * 2.5f) +
-                .035f * sin(seconds * 6.3f) +
-                .020f * sin(seconds * 1.2f)).coerceIn(.74f, 1f)
-            val strength = (.34f + fireAmount * .66f) * phase
-            val originX = -w * .07f
-            val originY = h * .65f
-            val radius = max(w * 1.02f, h * .56f)
+            // Slow, subtle variations that are visible even at low volume.
+            val phase = (.88f + .085f * sin(seconds * 2.1f) +
+                .045f * sin(seconds * 5.4f) +
+                .020f * sin(seconds * 1.1f)).coerceIn(.73f, 1f)
+            val strength = (.52f + fireAmount * .48f) * phase
+            val originX = -w * .035f
+            val originY = h * .58f
+            val radius = max(w * .83f, h * .53f)
             val outer = RectF(dp(2f), dp(12f), w - dp(2f), h - dp(12f))
             canvas.save()
             canvas.clipPath(octagon(outer, outer.width() * .235f, outer.height() * .175f))
             lightPaint.shader = RadialGradient(originX, originY, radius,
                 intArrayOf(
-                    Color.argb((24f * strength).toInt(), 255, 146, 62),
-                    Color.argb((10f * strength).toInt(), 238, 127, 51),
+                    Color.argb((86f * strength).toInt(), 255, 155, 70),
+                    Color.argb((31f * strength).toInt(), 240, 133, 58),
                     Color.TRANSPARENT
                 ),
                 floatArrayOf(0f, .40f, 1f), Shader.TileMode.CLAMP)
