@@ -53,8 +53,10 @@ jobs:
             python3 tools/fetch_neapolitan_cards.py
           fi
           test "$(find app/src/main/assets/cards -maxdepth 1 -name '*.jpg' | wc -l)" -eq 40
-      - name: Inspect public approved Freesound preview availability
-        run: python3 tools/audio/probe_previews.py
+      - name: Fetch and process all approved real sound recordings
+        run: |
+          command -v ffmpeg
+          python3 tools/audio/import_approved_recordings.py
       - name: Import approved salon recordings if bundle supplied
         run: |
           python3 tools/audio/import_salon_audio.py
@@ -74,10 +76,6 @@ jobs:
           else:
               print("Audio bundle not uploaded yet; this build has no sampled music/ambience.")
           PY
-      - name: Import real CC0 card handling recordings
-        run: python3 tools/audio/import_kenney_cards.py
-      - name: Import recorded CC0 fireplace
-        run: python3 tools/audio/import_real_fireplace.py
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build debug APK
@@ -106,7 +104,10 @@ jobs:
           python3 - <<'PY'
           from zipfile import ZipFile
           apk = 'app/build/outputs/apk/debug/app-debug.apk'
-          expected = ('salon_jazz', 'salon_fireplace', 'salon_card_deal', 'salon_card_play', 'salon_card_collect')
+          expected = ('salon_jazz', 'salon_fireplace', 'salon_card_deal',
+                      'salon_card_play', 'salon_card_collect',
+                      'salon_conversation', 'salon_glassware',
+                      'salon_chair', 'salon_footsteps', 'salon_applause')
           with ZipFile(apk) as z:
               for name in expected:
                   matches = [entry for entry in z.namelist()
