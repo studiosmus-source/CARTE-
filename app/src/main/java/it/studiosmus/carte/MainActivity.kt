@@ -205,7 +205,7 @@ class MainActivity : Activity() {
             setOnClickListener { showAudioSettings() }
         }, LinearLayout.LayoutParams(-1, dp(66)))
         root.addView(label("SOLO OFFLINE  •  NESSUN ACCOUNT", 11f, gold))
-        root.addView(label("Scopa e Briscola · Gioca offline · v0.1.2", 12f, ivory))
+        root.addView(label("Scopa e Briscola · Gioca offline · v0.1.3", 12f, ivory))
         installScreen(scroll)
     }
 
