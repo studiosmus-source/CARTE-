@@ -72,7 +72,9 @@ class BriscolaScreen(
             }
         })
         root.addView(header, LinearLayout.LayoutParams(-1, -2))
-        root.addView(renderer.cardBackRow(match.hands[1].size))
+        root.addView(renderer.cardBackRow(match.hands[1].size).apply {
+            if (session.dealing) CardMotion.reveal(this, true) { dp(it) }
+        })
         root.addView(label("COMPUTER  ·  ${match.points[1]} PUNTI", 13f, gold, true))
 
         val table = SalonTable(context)
@@ -94,6 +96,8 @@ class BriscolaScreen(
             table, leadView, replyView, match.remainingCards > 0
         ) { dp(it) }
         val tableMessage = when {
+            session.dealing -> "DISTRIBUZIONE DELLE CARTE"
+            session.collecting -> "RACCOLTA DELLA PRESA"
             session.trickResolving -> "PRESA IN CORSO"
             lead?.first == 1 -> "IL COMPUTER HA GIOCATO"
             lead?.first == 0 -> "HAI GIOCATO"
@@ -112,7 +116,7 @@ class BriscolaScreen(
             })
         } else {
             root.addView(renderer.cardRow(match.hands[0]) { card ->
-                if (match.turn == 0 && !session.trickResolving) session.play(0, card)
+                if (match.turn == 0 && !session.trickResolving && !session.dealing && !session.collecting) session.play(0, card)
             })
         }
         return root
